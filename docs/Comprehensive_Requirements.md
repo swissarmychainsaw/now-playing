@@ -191,7 +191,7 @@ This architecture ensures a seamless user experience while maintaining data cons
   - Active category should be visually highlighted
   
 - **Movie Display**
-  - Grid layout of movie cards (5 movies)
+  - Grid layout of movie cards (ONLY 5 movies)
   - Each card shows:
     - Movie poster
     - Title

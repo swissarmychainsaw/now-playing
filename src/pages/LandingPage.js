@@ -5,23 +5,19 @@ import {
   TextField,
   Button,
   Grid,
-  Card,
-  CardMedia,
-  CardContent,
   CircularProgress,
-  IconButton
+  Container
 } from '@mui/material';
-import { ThumbUp as ThumbUpIcon, ThumbDown as ThumbDownIcon } from '@mui/icons-material';
-import LikeDislikeButtons from '../components/LikeDislikeButtons';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom'; 
 import { useUser } from '../context/UserContext';
 import { GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
 import { auth } from '../config/firebase';
+import MovieCard from '../components/MovieCard';
 
 const LandingPage = () => {
   const [searchTerm, setSearchTerm] = useState('');
-  const [oscarWinners, setOscarWinners] = useState([]);
+  const [popularMovies, setPopularMovies] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const { user, likes, dislikes, updateLikes, updateDislikes } = useUser();
@@ -48,29 +44,71 @@ const LandingPage = () => {
 
   const isMovieLiked = (movieId) => likes?.includes(movieId) || false;
 
-  // Fetch random popular movies
+  // Fetch movies based on user's liked movies
   useEffect(() => {
-    const fetchRandomPopularMovies = async () => {
+    const fetchRecommendedMovies = async () => {
       try {
-        const randomPage = Math.floor(Math.random() * 20) + 1; // Random page between 1 and 20
-        const response = await axios.get('https://api.themoviedb.org/3/discover/movie', {
+        if (!likes || likes.length === 0) {
+          // If no likes, show popular movies
+          const response = await axios.get('https://api.themoviedb.org/3/discover/movie', {
+            params: {
+              api_key: process.env.REACT_APP_TMDB_API_KEY,
+              sort_by: 'popularity.desc',
+              page: Math.floor(Math.random() * 10) + 1,
+              include_adult: false,
+              language: 'en-US'
+            }
+          });
+          setPopularMovies(response.data.results);
+          return;
+        }
+
+        // Get movie details for liked movies to extract genres
+        const likedMovies = await Promise.all(
+          likes.map(async (movieId) => {
+            try {
+              const response = await axios.get(`https://api.themoviedb.org/3/movie/${movieId}`, {
+                params: {
+                  api_key: process.env.REACT_APP_TMDB_API_KEY
+                }
+              });
+              return response.data;
+            } catch (error) {
+              console.error(`Error fetching movie ${movieId}:`, error);
+              return null;
+            }
+          })
+        );
+
+        // Get all genres from liked movies
+        const allGenres = new Set();
+        likedMovies.forEach(movie => {
+          if (movie && movie.genres) {
+            movie.genres.forEach(genre => allGenres.add(genre.id));
+          }
+        });
+
+        // Get recommendations based on genres
+        const recommendations = await axios.get('https://api.themoviedb.org/3/discover/movie', {
           params: {
             api_key: process.env.REACT_APP_TMDB_API_KEY,
+            with_genres: Array.from(allGenres).join('|'),
             sort_by: 'popularity.desc',
-            page: randomPage,
+            page: Math.floor(Math.random() * 10) + 1,
             include_adult: false,
             language: 'en-US'
-          },
+          }
         });
-        setOscarWinners(response.data.results);
+
+        setPopularMovies(recommendations.data.results);
       } catch (error) {
-        console.error('Error fetching movies:', error);
+        console.error('Error fetching recommended movies:', error);
       } finally {
         setLoading(false);
       }
     };
-    fetchRandomPopularMovies();
-  }, []);
+    fetchRecommendedMovies();
+  }, [likes]);
 
   const handleGoogleSignIn = async () => {
     try {
@@ -84,8 +122,25 @@ const LandingPage = () => {
 
   const handleSearch = async (e) => {
     e.preventDefault();
-    if (!searchTerm.trim()) {
-      try {
+    try {
+      if (searchTerm.trim()) {
+        // If search term exists, search for that movie
+        const response = await axios.get('https://api.themoviedb.org/3/search/movie', {
+          params: {
+            api_key: process.env.REACT_APP_TMDB_API_KEY,
+            query: searchTerm,
+            include_adult: false
+          }
+        });
+        
+        if (response.data.results.length > 0) {
+          const firstResult = response.data.results[0];
+          navigate(`/movie/${firstResult.id}`);
+        } else {
+          setError('No movies found for that search term.');
+        }
+      } else {
+        // If no search term, show random popular movie
         const response = await axios.get('https://api.themoviedb.org/3/discover/movie', {
           params: {
             api_key: process.env.REACT_APP_TMDB_API_KEY,
@@ -99,30 +154,12 @@ const LandingPage = () => {
           const randomMovie = response.data.results[randomIndex];
           navigate(`/movie/${randomMovie.id}`);
         } else {
-          setError('No movies found');
+          setError('No movies found. Please try again.');
         }
-      } catch (error) {
-        console.error('Error fetching random movie:', error);
-        setError('Error fetching random movie');
       }
-      return;
-    }
-    try {
-      const response = await axios.get('https://api.themoviedb.org/3/search/movie', {
-        params: {
-          api_key: process.env.REACT_APP_TMDB_API_KEY,
-          query: searchTerm
-        }
-      });
-      if (response.data.results.length > 0) {
-        const movie = response.data.results[0];
-        navigate(`/movie/${movie.id}`);
-      } else {
-        setError('No movies found');
-      }
-    } catch (err) {
-      console.error('Error searching for movie:', err);
-      setError('Error searching for movie');
+    } catch (error) {
+      console.error('Error searching movies:', error);
+      setError('Error searching movies. Please try again.');
     }
   };
 
@@ -148,7 +185,7 @@ const LandingPage = () => {
       }}
       >
         <Typography variant="h4" component="h1" gutterBottom>
-          What's your favorite movie?
+         // Pick a movie you like and we'll find more like it.
         </Typography>
       </Box>
       <Box sx={{
@@ -238,53 +275,27 @@ const LandingPage = () => {
           <CircularProgress />
         </Box>
       ) : (
-        <Grid container spacing={3} justifyContent="center">
-          {oscarWinners.map((movie) => (
-            <Grid item xs={12} sm={6} md={6} key={movie.id}>
-              <Card 
-                sx={{ 
-                  height: '100%',
-                  display: 'flex',
-                  flexDirection: 'row'
-                }}
-              >
-                <CardMedia
-                  component="img"
-                  sx={{
-                    width: 200,
-                    objectFit: 'cover'
+        <Container maxWidth="xl" sx={{ mt: 4 }}>
+          <Grid container spacing={3}>
+            {popularMovies.map((movie) => (
+              <Grid item xs={12} sm={6} md={4} lg={3} key={movie.id}>
+                <MovieCard
+                  movie={{
+                    ...movie,
+                    // Ensure genres is an array
+                    genres: movie.genre_ids ? movie.genre_ids.map(id => ({ id, name: getGenreName(id) })) : []
                   }}
-                  image={`https://image.tmdb.org/t/p/w500${movie.poster_path}`}
-                  alt={movie.title}
+                  isLiked={isMovieLiked(movie.id)}
+                  isDisliked={isMovieDisliked(movie.id)}
+                  onLike={() => handleLike(movie.id)}
+                  onDislike={() => handleDislike(movie.id)}
+                  showActions={!!user}
+                  showOverview={false}
                 />
-                <Box sx={{ flexGrow: 1, p: 2, display: 'flex', flexDirection: 'column' }}>
-                  <Box sx={{ mb: 2 }}>
-                    <Typography gutterBottom variant="h5" component="h2">
-                      {movie.title}
-                    </Typography>
-                    <Typography variant="subtitle2" color="text.secondary">
-                      {new Date(movie.release_date).getFullYear()}
-                    </Typography>
-                  </Box>
-                  <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                    {movie.overview}
-                  </Typography>
-                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                    <Typography variant="caption" color="text.secondary" sx={{ mr: 1 }}>
-                      Your preferences help us recommend movies you'll love!
-                    </Typography>
-                    <LikeDislikeButtons
-                      movieId={movie.id}
-                      isLiked={isMovieLiked(movie.id)}
-                      onLike={handleLike}
-                      onDislike={handleDislike}
-                    />
-                  </Box>
-                </Box>
-              </Card>
-            </Grid>
-          ))}
-        </Grid>
+              </Grid>
+            ))}
+          </Grid>
+        </Container>
       )}
     </Box>
   );

@@ -31,41 +31,90 @@ const MoviePage = () => {
   const navigate = useNavigate();
   const { id } = useParams();
   const [movie, setMovie] = useState(null);
+  const [streamingProviders, setStreamingProviders] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [trailer, setTrailer] = useState(null);
   const [recommendations, setRecommendations] = useState([]);
   const { likes, dislikes, updateLikes, updateDislikes } = useUser();
 
+  const getStreamingInfo = (providers) => {
+    if (!movie || !providers) return null;
+    
+    // Check for US streaming providers first
+    const usProviders = providers.US;
+    if (!usProviders) return null;
+
+    // Priority: flatrate (subscription) > rent > buy
+    if (usProviders.flatrate?.length > 0) {
+      return {
+        url: `https://www.themoviedb.org/movie/${movie.id}/watch?locale=US`,
+        provider: usProviders.flatrate[0].provider_name,
+        type: 'Stream on',
+        logo: usProviders.flatrate[0].logo_path 
+          ? `https://image.tmdb.org/t/p/original${usProviders.flatrate[0].logo_path}`
+          : null
+      };
+    }
+    if (usProviders.rent?.length > 0) {
+      return {
+        url: `https://www.themoviedb.org/movie/${movie.id}/watch?locale=US`,
+        provider: usProviders.rent[0].provider_name,
+        type: 'Rent on',
+        logo: usProviders.rent[0].logo_path
+          ? `https://image.tmdb.org/t/p/original${usProviders.rent[0].logo_path}`
+          : null
+      };
+    }
+    if (usProviders.buy?.length > 0) {
+      return {
+        url: `https://www.themoviedb.org/movie/${movie.id}/watch?locale=US`,
+        provider: usProviders.buy[0].provider_name,
+        type: 'Buy on',
+        logo: usProviders.buy[0].logo_path
+          ? `https://image.tmdb.org/t/p/original${usProviders.buy[0].logo_path}`
+          : null
+      };
+    }
+    
+    return null;
+  };
+  
+  // Get streaming info whenever movie or providers change
+  const streamingInfo = movie && streamingProviders ? getStreamingInfo(streamingProviders) : null;
+
   const fetchMovieData = async () => {
     try {
-      const movieResponse = await axios.get(`https://api.themoviedb.org/3/movie/${id}`, {
-        params: {
-          api_key: process.env.REACT_APP_TMDB_API_KEY,
-          append_to_response: 'credits,videos'
-        }
-      });
+      // Fetch movie details, credits, and watch providers in parallel
+      const [movieResponse, providersResponse] = await Promise.all([
+        axios.get(`https://api.themoviedb.org/3/movie/${id}`, {
+          params: {
+            api_key: process.env.REACT_APP_TMDB_API_KEY,
+            append_to_response: 'credits'
+          }
+        }),
+        axios.get(`https://api.themoviedb.org/3/movie/${id}/watch/providers`, {
+          params: {
+            api_key: process.env.REACT_APP_TMDB_API_KEY
+          }
+        })
+      ]);
 
-      const trailer = movieResponse.data.videos?.results?.find(
-        video => video.type === 'Trailer' && video.site === 'YouTube'
-      );
-      setTrailer(trailer);
+      // Get ratings from TMDb
+      const ratings = {
+        critics: movieResponse.data.vote_average * 10, // Convert to percentage
+        audience: movieResponse.data.popularity // Using popularity as a fallback
+      };
 
-      const omdbResponse = await axios.get('https://www.omdbapi.com/', {
-        params: {
-          apikey: process.env.REACT_APP_OMDB_API_KEY,
-          t: movieResponse.data.title
-        }
-      });
+      // Set streaming providers
+      setStreamingProviders(providersResponse.data.results);
 
+      // Generate recommendations
       const recommendations = await generateRecommendations(movieResponse.data);
 
       setMovie({
         ...movieResponse.data,
-        ratings: {
-          critics: omdbResponse.data.Ratings?.find(r => r.Source === 'Rotten Tomatoes')?.Value,
-          audience: omdbResponse.data.imdbRating
-        },
+        ratings,
         poster_path: movieResponse.data.poster_path || '/placeholder-poster.png'
       });
       setRecommendations(recommendations);
@@ -121,6 +170,32 @@ const MoviePage = () => {
     }
   };
 
+  const getTrailerUrl = async (movieTitle) => {
+    try {
+      const response = await axios.get('https://www.googleapis.com/youtube/v3/search', {
+        params: {
+          part: 'snippet',
+          key: process.env.REACT_APP_YOUTUBE_API_KEY,
+          q: `${movieTitle} official trailer`,
+          type: 'video',
+          maxResults: 1,
+          videoCategoryId: 24 // Entertainment category
+        }
+      });
+      
+      if (response.data.items && response.data.items.length > 0) {
+        const videoId = response.data.items[0].id.videoId;
+        return `https://www.youtube.com/watch?v=${videoId}`;
+      }
+      
+      // If no trailer found, return a search URL
+      return `https://www.youtube.com/results?search_query=${movieTitle}+official+trailer`;
+    } catch (error) {
+      console.error('Error fetching trailer:', error);
+      return `https://www.youtube.com/results?search_query=${movieTitle}+official+trailer`;
+    }
+  };
+
   const handleLike = async () => {
     try {
       if (movie) {
@@ -142,10 +217,17 @@ const MoviePage = () => {
   };
 
   const isMovieLiked = () => likes?.includes(movie?.id) || false;
+  const isMovieDisliked = () => dislikes?.includes(movie?.id) || false;
 
   useEffect(() => {
     fetchMovieData();
   }, [id]);
+
+  useEffect(() => {
+    if (movie?.title) {
+      getTrailerUrl(movie.title).then(url => setTrailer(url));
+    }
+  }, [movie?.title]);
 
   if (loading) {
     return (
@@ -167,27 +249,19 @@ const MoviePage = () => {
     return <div>Error loading movie details. Try a different one.</div>;
   }
 
-  const trailerUrl = `https://www.youtube.com/results?search_query=${movie.title}+trailer`;
-
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
-      <Box sx={{ 
-        mt: 4, 
-        mb: 4, 
-        border: '1px solid #ccc', 
-        borderRadius: 1, 
-        display: 'flex',
-        alignItems: 'flex-start'
-      }}>
-        <Grid container spacing={2}>
+      <Box sx={{ mt: 4, mb: 4, border: '1px solid #ccc', borderRadius: 1 }}>
+        <Grid
+          container
+          direction="row"
+          spacing={4}
+          wrap="nowrap"
+          alignItems="flex-start"
+        >
           {/* Left column: Poster */}
-          <Grid item xs={12} md={4} sx={{ display: 'flex', justifyContent: 'center' }}>
-            <Card
-              sx={{
-                maxWidth: 300,
-                width: '100%',
-                boxShadow: 3
-              }}
+          <Grid item sx={{ flex: '0 0 300px' }}>
+            <Card sx={{ width: '100%', boxShadow: 3 }}
             >
               <CardMedia
                 component="img"
@@ -201,17 +275,26 @@ const MoviePage = () => {
             </Card>
           </Grid>
           {/* Right column: Details */}
-          <Grid item xs={12} md={8} sx={{ display: 'flex', flexDirection: 'column' }}>
-            <Box sx={{ p: 2, width: '100%' }}>
+          <Grid item sx={{ flex: 1 }}>
+            <Box sx={{ 
+              p: 2, 
+              width: '100%', 
+              display: 'flex', 
+              flexDirection: 'column', 
+              height: '100%' 
+            }}>
               <MovieDetails movie={movie} />
-              <TrailerAndActions 
-                movie={movie} 
-                trailer={trailer}
-                onLike={handleLike}
-                onDislike={handleDislike}
-                isLiked={isMovieLiked()}
-              />
               <RatingDisplay movie={movie} />
+              {movie && (
+                <TrailerAndActions
+                  movie={movie}
+                  streamingInfo={streamingInfo}
+                  onLike={handleLike}
+                  onDislike={handleDislike}
+                  isLiked={isMovieLiked()}
+                  isDisliked={isMovieDisliked()}
+                />
+              )}
             </Box>
           </Grid>
         </Grid>

@@ -18,6 +18,49 @@ This document outlines the comprehensive requirements for the "Now Playing" movi
 ### 1.2 Project Overview
 The application integrates with The Movie Database (TMDb) to provide movie information, streaming availability, and personalized recommendations. It offers a clean, responsive interface for browsing, searching, and interacting with movie content.
 
+### 1.2.1 Authentication and Access Control
+
+The application uses Google Authentication via Firebase as the sole method for user login. No other authentication providers (e.g. email/password, phone) are enabled.
+Implementation Overview
+
+    Google-only Sign-In is enforced via Firebase Auth.
+
+    On first login, a user profile is created and may be extended in Firestore.
+
+    Authentication state is tracked globally and governs access to app routes.
+
+    Sessions persist using Firebase’s native token and refresh system.
+
+Authenticated Pages
+
+The following pages require the user to be signed in:
+
+    Landing Page (Main Recommendation View): Users enter a favorite movie and receive recommendations.
+
+    Movie Detail Page: Provides detailed metadata about a selected movie.
+
+    User Ratings Page: Displays all movies the user has interacted with via thumbs up/down.
+
+Unauthenticated Pages
+
+The following pages do not require authentication:
+
+    Test Pages (e.g. /test-cards, /test-layouts): Used during development for previewing components such as movie cards or layout structure.
+
+    404 / Fallback Page: Displayed for unknown routes.
+
+Route Access Diagram
+
+graph TD
+    A[Google Sign-In Page] --> B[Landing Page<br>(Recommendations)]
+    B --> C[Movie Detail Page]
+    B --> D[User Ratings Page]
+
+    subgraph Public Pages (No Auth)
+        E[Test Pages<br>/test-cards, /test-layouts]
+        F[404 / Fallback Page]
+    end
+
 ## 2. User Interface Requirements
 
 ### 2.1 Landing Page

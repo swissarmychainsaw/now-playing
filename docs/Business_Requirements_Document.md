@@ -103,40 +103,44 @@ The application integrates with The Movie Database (TMDb) to provide comprehensi
 - As a user, I want to save movies to a watchlist so that I can find them later
 
 ### 4.4 Landing Page
-
-Feature: Landing Page Recommendations
+Feature: Landing Page
 Default View Behavior
 * Upon arriving at the landing page, the user sees:
-    * A search input or prompt (e.g., “Start with a movie you like…”)
-    * Recommendation buttons such as Oscar Winners, Popular, and Critics' Picks
-* Below the buttons, a list of 5 recommended movies appears.
+    * A search input box
+	* A blue "search button" under the box that says "Search"
+	* Under the search functions there are 4 Recommendation buttons:
+		* For You
+    		* Oscar Winners
+		* Popular 
+		* Critics' Picks
+* Below the 4 Recommendation buttons, a list of 5 recommended movies appears.
 * These recommendations are based on the user's previously liked movies (from the Liked Movies page).
 * Each movie card:
     * Is clickable and links to the movie's detail page
     * Displays the same metadata as used throughout the app (poster, title, ratings, etc.)
-Oscar Winners Button
-* Clicking this button refreshes the landing page.
+* Oscar Winners Button
+	* Clicking this button refreshes the landing page.
 * Below the buttons, a new list of 5 Oscar-winning movies is displayed.
 * These movies are:
     * Aligned with the user’s liked movies
     * Filtered to exclude movies the user has already seen or liked
 * Repeat clicks deliver a fresh set of unseen Oscar-winning recommendations.
 Popular Button
-* Clicking this button refreshes the landing page.
-* Below the buttons, a list of 5 popular movies is displayed.
-* These movies are:
-    * Defined by the app's internal "popular" dataset (e.g., from TMDB or trending APIs)
-    * Closely aligned with the user’s liked movies
-    * Not previously shown to the user
+	* Clicking this button refreshes the landing page.
+	* Below the buttons, a list of 5 popular movies is displayed.
+	* These movies are:
+	    * Defined by the app's internal "popular" dataset (e.g., from TMDB or trending APIs)
+	    * Closely aligned with the user’s liked movies
+	    * Not previously shown to the user
 * Repeat clicks return a new set of unseen recommendations.
 Critics’ Picks Button
-* Clicking this button refreshes the landing page.
-* Below the buttons, a list of 5 highly rated movies by critics appears.
-* These movies are:
-    * Primary sort: Critic rating (e.g., Rotten Tomatoes score)
-    * Secondary sort: Similarity to user’s liked movies
-    * Filtered to exclude previously seen items
-* Each click delivers a new batch of recommendations.
+	* Clicking this button refreshes the landing page.
+	* Below the buttons, a list of 5 highly rated movies by critics appears.
+	* These movies are:
+	    * Primary sort: Critic rating (e.g., Rotten Tomatoes score)
+	    * Secondary sort: Similarity to user’s liked movies
+	    * Filtered to exclude previously seen items
+	    * Each click delivers a new batch of recommendations.
 Reusable Card Component
 * All recommended movies on the landing page should use a shared, reusable movie card component.
 * This component must:

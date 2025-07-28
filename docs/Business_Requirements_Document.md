@@ -81,7 +81,7 @@ The application integrates with The Movie Database (TMDb) to provide comprehensi
 - **Firebase Realtime Database** for storing user preferences
 
 ### 3.3 Hosting & Deployment
-- Hosting on Netlify or Vercel
+- Hosting on Google FireBase
 - Continuous Deployment from GitHub repository
 - Environment variable management for API keys
 
@@ -101,6 +101,103 @@ The application integrates with The Movie Database (TMDb) to provide comprehensi
 - As a user, I want to like/dislike movies so that I can receive better recommendations
 - As a user, I want to see personalized recommendations based on my preferences so that I can discover movies I'll enjoy
 - As a user, I want to save movies to a watchlist so that I can find them later
+
+### 4.4 Landing Page
+
+Feature: Landing Page Recommendations
+Default View Behavior
+* Upon arriving at the landing page, the user sees:
+    * A search input or prompt (e.g., “Start with a movie you like…”)
+    * Recommendation buttons such as Oscar Winners, Popular, and Critics' Picks
+* Below the buttons, a list of 5 recommended movies appears.
+* These recommendations are based on the user's previously liked movies (from the Liked Movies page).
+* Each movie card:
+    * Is clickable and links to the movie's detail page
+    * Displays the same metadata as used throughout the app (poster, title, ratings, etc.)
+Oscar Winners Button
+* Clicking this button refreshes the landing page.
+* Below the buttons, a new list of 5 Oscar-winning movies is displayed.
+* These movies are:
+    * Aligned with the user’s liked movies
+    * Filtered to exclude movies the user has already seen or liked
+* Repeat clicks deliver a fresh set of unseen Oscar-winning recommendations.
+Popular Button
+* Clicking this button refreshes the landing page.
+* Below the buttons, a list of 5 popular movies is displayed.
+* These movies are:
+    * Defined by the app's internal "popular" dataset (e.g., from TMDB or trending APIs)
+    * Closely aligned with the user’s liked movies
+    * Not previously shown to the user
+* Repeat clicks return a new set of unseen recommendations.
+Critics’ Picks Button
+* Clicking this button refreshes the landing page.
+* Below the buttons, a list of 5 highly rated movies by critics appears.
+* These movies are:
+    * Primary sort: Critic rating (e.g., Rotten Tomatoes score)
+    * Secondary sort: Similarity to user’s liked movies
+    * Filtered to exclude previously seen items
+* Each click delivers a new batch of recommendations.
+Reusable Card Component
+* All recommended movies on the landing page should use a shared, reusable movie card component.
+* This component must:
+    * Be visually and functionally consistent across pages (landing, movie details, liked movies)
+    * Include core metadata such as poster, title, release year, critic and audience ratings, trailer link, and like/dislike controls
+    * Support click-through to the movie detail page via the image or title
+
+### 4.5 MovieCard
+
+Create a test page where only one card is displayed on the page for testing purposes. Use “Star Wars” as the movie to test. Make the URL /MovieCardTest
+
+Here's a breakdown of the MovieCard component's structure and features:
+Key Features:
+1. Props:
+    * movie: Object containing movie details (title, poster_path, vote_average, etc.)
+    * isLiked/isDisliked: Boolean states for like/dislike buttons
+    * onLike/onDislike: Callback functions for button clicks
+    * showActions: Toggle for like/dislike buttons
+    * showOverview: Toggle for movie overview text
+    * showRating: Toggle for rating display
+    * onClick: Custom click handler (optional)
+2. UI Components:
+    * Poster Image: Displays the movie poster with hover effect
+    * Play Button: Appears on hover over the poster
+    * Title & Year: Movie title with release year
+    * Rating: Star rating display (converted from 10-point scale to 5 stars)
+    * Genre Chips: Displays up to 3 genre tags
+    * Overview: Truncated movie description (3 lines max)
+    * Action Buttons: Like/Dislike buttons with tooltips
+3. Interactivity:
+    * Clicking the card navigates to the movie detail page
+    * Like/Dislike buttons with visual feedback
+    * Hover effects on the card and buttons
+4. Responsive Design:
+    * Flexbox layout that adapts to different container sizes
+    * Proper image aspect ratio (2:3)
+    * Responsive typography and spacing
+5. Accessibility:
+    * Semantic HTML elements
+    * ARIA labels and roles
+    * Keyboard navigation support
+    * Tooltips for interactive elements 	 1	Overall Card Dimensions:
+    * Width: 100% of parent container (controlled by Grid)
+    * Height: Auto (adjusts to content)
+    * Max Width: 300px (from the container we added)
+* Image Section:
+    * Aspect Ratio: 2/3 (height is 1.5x the width)
+    * Full width of the card
+    * Rounded top corners
+* Content Section:
+    * Title and year on the same line
+    * Rating stars below
+    * Genre chips in a row below that
+    * Overview text (if shown)
+    * Action buttons at the bottom
+* Grid Layout:
+    * On extra-small screens: 1 column (full width)
+    * On small screens: 2 columns
+    * On medium screens: 3 columns
+    * On large screens: 4 columns
+
 
 ## 5. Data Model
 

@@ -271,6 +271,17 @@ This architecture ensures a seamless user experience while maintaining data cons
 - Consistent styling and interaction patterns
 - Clickable to navigate to movie details
 
+  
+### 2.4 Site Header
+- All pages should have a consistent header
+- the header  should be a  wide dark blue band.
+- The header should contain the words now playing in a fancy script font extra large
+- the header should sure which Google user is logged in the icon with the first letter looks good
+- the header should have a sign out button which when pressed will sign the user out of the Google authentication used
+- the header will also have a button in the same shape and size as the sign out button that says "my – ratings
+  
+
+
 ## 3. Functional Requirements
 
 ### 3.1 User Authentication
@@ -302,6 +313,9 @@ This architecture ensures a seamless user experience while maintaining data cons
 ## 4. Use Cases
 
 ### 4.1 Landing Page
+- the landing page will contain the text discover your next favorite movie
+- the lending page will contain the text find explore and rate your movies
+
 
 ### 4.2 Movie Detail Page
 

@@ -198,21 +198,63 @@ This architecture ensures a seamless user experience while maintaining data cons
     - Release year
     - Average rating
     - "Watch Movie" button
+    - "Watch Trailer" button that takes the user to a new page and starts the trailer
   - Loading spinner during data fetch
   - Error message display when needed
   - "No results" state when no movies are found
+ 
+    
+### 2.1.1 UC-1: View Default Recommendations
+**Actor**: User  
+**Precondition**: User has opened the application  
+**Main Flow**:
+1. System loads the landing page
+2. System displays loading spinner
+3. System fetches personalized recommendations (or popular movies for new users)
+5. System displays 5 movie cards in a grid
+6. "For You" tab is highlighted by default
+7. If a user has no saved ratings, then default to popular movies
+
+#### UC-2: Switch Recommendation Category
+**Actor**: User  
+**Precondition**: User is on the landing page  
+**Main Flow**:
+1. User clicks on a different category tab (Oscar Winners, Popular, Critics' Picks)
+2. System shows loading state
+3. System fetches and displays relevant movies for the selected category
+4. Selected tab is visually highlighted
+
+#### UC-3: Search for Movies
+**Actor**: User  
+**Precondition**: User is on the landing page  
+**Main Flow**:
+1. User enters search term in the search box
+2. User clicks the search button or presses Enter
+3. System shows loading state
+4. If the search term is available as a valid result, then the user is taken to the movie detail page for that movie
+5. If the search term is invalid, meaning there is no title match for the movie then the system will deliver a list of movies that are close in name.
+6. If no results, system shows "No movies found" message
+
+
 
 ### 2.2 Movie Detail Page
 - **Movie Information**
-  - Large movie poster
+  - Large movie poster, left justified
+  - movie data, right justified.
   - Title and release year
-  - Rating and runtime
+  - Rating information and run time
   - Genre tags
   - Plot summary
+  - Director
+  - top three build cast members
+  - thumbs up and thumbs down icon that when clicked get saved to the users data
+  - text below the thumbs up and down icon that reads "Rate movies to get better recommendations!"
   
 - **Watch Options**
-  - Available streaming providers with logos
+  - Available streaming providers with logos, if available
+  - if there are no streaming provider options, then show nothing
   - Direct links to watch on provider platforms
+  - if there are no direct links to watch on provider platforms, then show nothing
   - Fallback to TMDb page if no direct links available
   
 - **Additional Information**
@@ -260,35 +302,6 @@ This architecture ensures a seamless user experience while maintaining data cons
 ## 4. Use Cases
 
 ### 4.1 Landing Page
-
-#### UC-1: View Default Recommendations
-**Actor**: User  
-**Precondition**: User has opened the application  
-**Main Flow**:
-1. System loads the landing page
-2. System displays loading spinner
-3. System fetches personalized recommendations (or popular movies for new users)
-4. System displays 5 movie cards in a grid
-5. "For You" tab is highlighted by default
-
-#### UC-2: Switch Recommendation Category
-**Actor**: User  
-**Precondition**: User is on the landing page  
-**Main Flow**:
-1. User clicks on a different category tab (Oscar Winners, Popular, Critics' Picks)
-2. System shows loading state
-3. System fetches and displays relevant movies for the selected category
-4. Selected tab is visually highlighted
-
-#### UC-3: Search for Movies
-**Actor**: User  
-**Precondition**: User is on the landing page  
-**Main Flow**:
-1. User enters search term in the search box
-2. User clicks the search button or presses Enter
-3. System shows loading state
-4. System displays search results (up to 5 movies)
-5. If no results, system shows "No movies found" message
 
 ### 4.2 Movie Detail Page
 

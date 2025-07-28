@@ -60,7 +60,121 @@ graph TD
         E[Test Pages<br>/test-cards, /test-layouts]
         F[404 / Fallback Page]
     end
+Firestore & Storage Usage
 
+    Cloud Firestore is used to store user profile data and movie interaction history.
+
+    Each user’s data lives under /users/{uid}/ratings, keyed by their Firebase Auth uid
+    Stack Overflow
+    .
+
+    Security rules enforce that a user can only read or write their own data:
+
+match /users/{userId}/ratings/{doc} {
+  allow read, write: if request.auth != null && request.auth.uid == userId;
+}
+
+Firebase Storage (if used)
+
+    For any uploaded assets (e.g. custom images), files are stored in Firebase Storage (backed by Google Cloud Storage).
+
+    Access is strictly controlled via Firebase Storage Security Rules, ensuring only authenticated users can read/write their own files
+    Firebase+1firebase.blog+1
+    .
+
+Best Practices & Compliance
+
+    Avoid placing sensitive data in document IDs or field names (e.g. don’t stringify email within doc IDs)
+    Firebase
+    .
+
+    Follow Firebase best practices: test security rules regularly, use staging vs production projects, and limit production data access to core team members
+    MoldStud
+    .
+
+### 1.2.2 Deployment Environment
+Hosting via Google
+
+    The app is deployed using Firebase Hosting, powered by Google Cloud Platform (GCP).
+
+    Hosting provides zero-config SSL, global CDN distribution, and optional serverless support (e.g., Cloud Functions or Cloud Run backends)
+    Firebase
+    .
+
+    Deployment is managed via firebase.json and optionally automated via Cloud Build triggers connected to your GitHub repo
+    cloud.google.com
+    .
+
+Regional Considerations
+
+    Database and storage resources are provisioned in a specific geographic region or multi-region (e.g. us-west1, us-central1) to balance latency, availability, and cost
+    cloud.google.com
+    .
+
+    The chosen region should match your primary user base and ensure compliance with residency or performance requirements.
+
+
+Google Authentication & Data Storage
+1. Authentication Flow
+Provider: Google OAuth via Firebase Authentication
+Implementation:
+Users sign in using their Google accounts via a popup
+Authentication state is managed by Firebase Auth
+The app listens for auth state changes to update the UI accordingly
+2. User Data Storage
+Database: Firestore (NoSQL database)
+Collection: users
+Document Structure:
+Document ID: User's UID from Firebase Auth
+Fields:
+likes
+: Array of movie IDs the user has liked
+dislikes: Array of movie IDs the user has disliked
+lastUpdated: Timestamp of the last update
+3. Data Usage Across Pages
+a) Login Page (/login)
+Handles Google sign-in
+Creates/updates user document in Firestore upon first sign-in
+Stores basic user info (email, display name) from Google profile
+b) Landing Page (/)
+Displays personalized movie recommendations
+Uses user's 
+likes
+ and dislikes to filter and sort content
+Shows "For You" tab with personalized recommendations
+c) Movie Details Page (/movie/:id)
+Shows like/dislike buttons
+Updates user's preferences in real-time
+Saves changes to Firestore
+d) Liked Movies Page (/liked)
+Displays all movies the user has liked
+Pulls data from the user's 
+likes
+ array
+Allows removing likes
+4. Data Flow
+User signs in with Google
+App creates/loads user document in Firestore
+User interactions (likes/dislikes) update local state
+Changes are synced to Firestore
+Other components listen for changes and update UI accordingly
+5. Security
+Firestore Security Rules should be implemented to ensure users can only read/write their own data
+Authentication state is managed by Firebase Auth
+Sensitive operations require an authenticated user
+6. Dependencies
+Firebase Authentication (for Google sign-in)
+Firestore (for storing user preferences)
+React Context API (for state management)
+7. Important Considerations
+The app uses optimistic UI updates for better user experience
+Error handling is in place for failed operations
+User preferences are synced across devices in real-time
+The app handles offline scenarios gracefully
+This architecture ensures a seamless user experience while maintaining data consistency across the application.
+
+
+    
 ## 2. User Interface Requirements
 
 ### 2.1 Landing Page

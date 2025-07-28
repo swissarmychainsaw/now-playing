@@ -17,7 +17,7 @@ import {
   Paper,
   IconButton
 } from '@mui/material';
-import { PlayArrow as PlayArrowIcon, ThumbUp as ThumbUpIcon, ThumbDown as ThumbDownIcon } from '@mui/icons-material';
+import { PlayArrow as PlayArrowIcon } from '@mui/icons-material';
 import LikeDislikeButtons from '../components/LikeDislikeButtons';
 import axios from 'axios';
 
@@ -252,7 +252,16 @@ if (!movie && !loading) {
                       <PlayArrowIcon />
                     </IconButton>
                   </Tooltip>
+                  <LikeDislikeButtons
+                    movieId={movie.id}
+                    isLiked={isMovieLiked()}
+                    onLike={handleLike}
+                    onDislike={handleDislike}
+                  />
                 </Box>
+                <Typography variant="body2" color="text.secondary" sx={{ mt: 4 }}>
+                  Your preferences help us recommend movies you'll love!
+                </Typography>
               </CardContent>
             </Card>
           </Grid>
@@ -323,8 +332,6 @@ if (!movie && !loading) {
           ))}
         </Grid>
       </Box>
-    </Box>
-  );
     </Box>
   );
 };

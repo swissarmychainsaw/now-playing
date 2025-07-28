@@ -1,3 +1,6 @@
+# Now Playing!
+Find your next favorite movie based on your favorite films. Built with React, Firebase, and TMDB/OMDb APIs.
+
 # Getting Started with Create React App
 
 This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).

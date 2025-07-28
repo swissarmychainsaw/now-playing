@@ -252,12 +252,6 @@ if (!movie && !loading) {
                       <PlayArrowIcon />
                     </IconButton>
                   </Tooltip>
-                  <LikeDislikeButtons
-                    movieId={movie.id}
-                    isLiked={isMovieLiked()}
-                    onLike={handleLike}
-                    onDislike={handleDislike}
-                  />
                 </Box>
               </CardContent>
             </Card>

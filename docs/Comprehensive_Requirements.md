@@ -18,6 +18,163 @@ This document outlines the comprehensive requirements for the "Now Playing" movi
 ### 1.2 Project Overview
 The application integrates with The Movie Database (TMDb) to provide movie information, streaming availability, and personalized recommendations. It offers a clean, responsive interface for browsing, searching, and interacting with movie content.
 
+### 1.2.1 Authentication and Access Control
+
+The application uses Google Authentication via Firebase as the sole method for user login. No other authentication providers (e.g. email/password, phone) are enabled.
+Implementation Overview
+
+    Google-only Sign-In is enforced via Firebase Auth.
+
+    On first login, a user profile is created and may be extended in Firestore.
+
+    Authentication state is tracked globally and governs access to app routes.
+
+    Sessions persist using Firebase’s native token and refresh system.
+
+Authenticated Pages
+
+The following pages require the user to be signed in:
+
+    Landing Page (Main Recommendation View): Users enter a favorite movie and receive recommendations.
+
+    Movie Detail Page: Provides detailed metadata about a selected movie.
+
+    User Ratings Page: Displays all movies the user has interacted with via thumbs up/down.
+
+Unauthenticated Pages
+
+The following pages do not require authentication:
+
+    Test Pages (e.g. /test-cards, /test-layouts): Used during development for previewing components such as movie cards or layout structure.
+
+    404 / Fallback Page: Displayed for unknown routes.
+
+Route Access Diagram
+
+graph TD
+    A[Google Sign-In Page] --> B[Landing Page<br>(Recommendations)]
+    B --> C[Movie Detail Page]
+    B --> D[User Ratings Page]
+
+    subgraph Public Pages (No Auth)
+        E[Test Pages<br>/test-cards, /test-layouts]
+        F[404 / Fallback Page]
+    end
+Firestore & Storage Usage
+
+    Cloud Firestore is used to store user profile data and movie interaction history.
+
+    Each user’s data lives under /users/{uid}/ratings, keyed by their Firebase Auth uid
+    Stack Overflow
+    .
+
+    Security rules enforce that a user can only read or write their own data:
+
+match /users/{userId}/ratings/{doc} {
+  allow read, write: if request.auth != null && request.auth.uid == userId;
+}
+
+Firebase Storage (if used)
+
+    For any uploaded assets (e.g. custom images), files are stored in Firebase Storage (backed by Google Cloud Storage).
+
+    Access is strictly controlled via Firebase Storage Security Rules, ensuring only authenticated users can read/write their own files
+    Firebase+1firebase.blog+1
+    .
+
+Best Practices & Compliance
+
+    Avoid placing sensitive data in document IDs or field names (e.g. don’t stringify email within doc IDs)
+    Firebase
+    .
+
+    Follow Firebase best practices: test security rules regularly, use staging vs production projects, and limit production data access to core team members
+    MoldStud
+    .
+
+### 1.2.2 Deployment Environment
+Hosting via Google
+
+    The app is deployed using Firebase Hosting, powered by Google Cloud Platform (GCP).
+
+    Hosting provides zero-config SSL, global CDN distribution, and optional serverless support (e.g., Cloud Functions or Cloud Run backends)
+    Firebase
+    .
+
+    Deployment is managed via firebase.json and optionally automated via Cloud Build triggers connected to your GitHub repo
+    cloud.google.com
+    .
+
+Regional Considerations
+
+    Database and storage resources are provisioned in a specific geographic region or multi-region (e.g. us-west1, us-central1) to balance latency, availability, and cost
+    cloud.google.com
+    .
+
+    The chosen region should match your primary user base and ensure compliance with residency or performance requirements.
+
+
+Google Authentication & Data Storage
+1. Authentication Flow
+Provider: Google OAuth via Firebase Authentication
+Implementation:
+Users sign in using their Google accounts via a popup
+Authentication state is managed by Firebase Auth
+The app listens for auth state changes to update the UI accordingly
+2. User Data Storage
+Database: Firestore (NoSQL database)
+Collection: users
+Document Structure:
+Document ID: User's UID from Firebase Auth
+Fields:
+likes
+: Array of movie IDs the user has liked
+dislikes: Array of movie IDs the user has disliked
+lastUpdated: Timestamp of the last update
+3. Data Usage Across Pages
+a) Login Page (/login)
+Handles Google sign-in
+Creates/updates user document in Firestore upon first sign-in
+Stores basic user info (email, display name) from Google profile
+b) Landing Page (/)
+Displays personalized movie recommendations
+Uses user's 
+likes
+ and dislikes to filter and sort content
+Shows "For You" tab with personalized recommendations
+c) Movie Details Page (/movie/:id)
+Shows like/dislike buttons
+Updates user's preferences in real-time
+Saves changes to Firestore
+d) Liked Movies Page (/liked)
+Displays all movies the user has liked
+Pulls data from the user's 
+likes
+ array
+Allows removing likes
+4. Data Flow
+User signs in with Google
+App creates/loads user document in Firestore
+User interactions (likes/dislikes) update local state
+Changes are synced to Firestore
+Other components listen for changes and update UI accordingly
+5. Security
+Firestore Security Rules should be implemented to ensure users can only read/write their own data
+Authentication state is managed by Firebase Auth
+Sensitive operations require an authenticated user
+6. Dependencies
+Firebase Authentication (for Google sign-in)
+Firestore (for storing user preferences)
+React Context API (for state management)
+7. Important Considerations
+The app uses optimistic UI updates for better user experience
+Error handling is in place for failed operations
+User preferences are synced across devices in real-time
+The app handles offline scenarios gracefully
+This architecture ensures a seamless user experience while maintaining data consistency across the application.
+
+
+    
 ## 2. User Interface Requirements
 
 ### 2.1 Landing Page
@@ -41,21 +198,63 @@ The application integrates with The Movie Database (TMDb) to provide movie infor
     - Release year
     - Average rating
     - "Watch Movie" button
+    - "Watch Trailer" button that takes the user to a new page and starts the trailer
   - Loading spinner during data fetch
   - Error message display when needed
   - "No results" state when no movies are found
+ 
+    
+### 2.1.1 UC-1: View Default Recommendations
+**Actor**: User  
+**Precondition**: User has opened the application  
+**Main Flow**:
+1. System loads the landing page
+2. System displays loading spinner
+3. System fetches personalized recommendations (or popular movies for new users)
+5. System displays 5 movie cards in a grid
+6. "For You" tab is highlighted by default
+7. If a user has no saved ratings, then default to popular movies
+
+#### UC-2: Switch Recommendation Category
+**Actor**: User  
+**Precondition**: User is on the landing page  
+**Main Flow**:
+1. User clicks on a different category tab (Oscar Winners, Popular, Critics' Picks)
+2. System shows loading state
+3. System fetches and displays relevant movies for the selected category
+4. Selected tab is visually highlighted
+
+#### UC-3: Search for Movies
+**Actor**: User  
+**Precondition**: User is on the landing page  
+**Main Flow**:
+1. User enters search term in the search box
+2. User clicks the search button or presses Enter
+3. System shows loading state
+4. If the search term is available as a valid result, then the user is taken to the movie detail page for that movie
+5. If the search term is invalid, meaning there is no title match for the movie then the system will deliver a list of movies that are close in name.
+6. If no results, system shows "No movies found" message
+
+
 
 ### 2.2 Movie Detail Page
 - **Movie Information**
-  - Large movie poster
+  - Large movie poster, left justified
+  - movie data, right justified.
   - Title and release year
-  - Rating and runtime
+  - Rating information and run time
   - Genre tags
   - Plot summary
+  - Director
+  - top three build cast members
+  - thumbs up and thumbs down icon that when clicked get saved to the users data
+  - text below the thumbs up and down icon that reads "Rate movies to get better recommendations!"
   
 - **Watch Options**
-  - Available streaming providers with logos
+  - Available streaming providers with logos, if available
+  - if there are no streaming provider options, then show nothing
   - Direct links to watch on provider platforms
+  - if there are no direct links to watch on provider platforms, then show nothing
   - Fallback to TMDb page if no direct links available
   
 - **Additional Information**
@@ -103,35 +302,6 @@ The application integrates with The Movie Database (TMDb) to provide movie infor
 ## 4. Use Cases
 
 ### 4.1 Landing Page
-
-#### UC-1: View Default Recommendations
-**Actor**: User  
-**Precondition**: User has opened the application  
-**Main Flow**:
-1. System loads the landing page
-2. System displays loading spinner
-3. System fetches personalized recommendations (or popular movies for new users)
-4. System displays 5 movie cards in a grid
-5. "For You" tab is highlighted by default
-
-#### UC-2: Switch Recommendation Category
-**Actor**: User  
-**Precondition**: User is on the landing page  
-**Main Flow**:
-1. User clicks on a different category tab (Oscar Winners, Popular, Critics' Picks)
-2. System shows loading state
-3. System fetches and displays relevant movies for the selected category
-4. Selected tab is visually highlighted
-
-#### UC-3: Search for Movies
-**Actor**: User  
-**Precondition**: User is on the landing page  
-**Main Flow**:
-1. User enters search term in the search box
-2. User clicks the search button or presses Enter
-3. System shows loading state
-4. System displays search results (up to 5 movies)
-5. If no results, system shows "No movies found" message
 
 ### 4.2 Movie Detail Page
 

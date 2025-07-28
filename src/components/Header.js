@@ -1,87 +1,62 @@
 import React from 'react';
-import { AppBar, Toolbar, Typography, Button, Box } from '@mui/material';
-import { useUser } from '../context/UserContext';
-import { auth } from '../config/firebase';
 import { Link as RouterLink, useNavigate } from 'react-router-dom';
-import GradientText from './GradientText';
-import LocalMoviesIcon from '@mui/icons-material/LocalMovies';
+import { AppBar, Toolbar, Typography, Button, Box, Avatar } from '@mui/material';
+import { useUser } from '../context/UserContext';
 
 const Header = () => {
+  const { user, signOut } = useUser();
   const navigate = useNavigate();
-  const { user } = useUser();
 
-  const handleLogoClick = () => {
-    navigate('/');
+  const handleSignOut = async () => {
+    try {
+      await signOut();
+      navigate('/');
+    } catch (error) {
+      console.error('Failed to sign out:', error);
+    }
   };
 
   return (
-    <AppBar position="static" sx={{
-      backgroundColor: '#1976d2',
-      color: 'white'
-    }}>
+    <AppBar 
+      position="sticky" 
+      sx={{ 
+        backgroundColor: 'background.paper',
+        color: 'text.primary',
+        boxShadow: '0 2px 10px 0 rgba(0,0,0,0.05)',
+        mb: 3
+      }}
+    >
       <Toolbar sx={{ justifyContent: 'space-between' }}>
-        <Box sx={{ flexGrow: 1, display: 'flex', alignItems: 'center' }}>
-          <Typography variant="h4" component="h1" sx={{ mr: 2, cursor: 'pointer' }} onClick={() => navigate('/')}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <LocalMoviesIcon sx={{ fontSize: '1.5rem', color: '#1976d2' }} />
-              <GradientText>
-                Now Playing!
-              </GradientText>
-            </Box>
+        <Box component={RouterLink} to="/" sx={{ textDecoration: 'none', color: 'inherit' }}>
+          <Typography variant="h5" fontWeight="bold">
+            Now Playing
           </Typography>
-          <Box sx={{ flexGrow: 1 }} />
         </Box>
-        <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+        
+        <Box display="flex" alignItems="center" gap={2}>
           {user ? (
-            <>
-              <Typography variant="body2" color="white">
-                {user.email}
-              </Typography>
+            <Box display="flex" alignItems="center" gap={1}>
+              <Avatar 
+                src={user.photoURL} 
+                alt={user.displayName || 'User'} 
+                sx={{ width: 32, height: 32 }}
+              />
               <Button 
-                variant="contained"
-                color="primary"
-                component={RouterLink}
-                to="/liked"
-                sx={{
-                  backgroundColor: '#1976d2',
-                  color: 'white',
-                  '&:hover': {
-                    backgroundColor: 'rgba(25, 118, 210, 0.9)'
-                  }
-                }}
-              >
-                My Ratings
-              </Button>
-              <Button 
-                variant="contained"
-                color="primary"
-                onClick={() => {
-                  auth.signOut().then(() => {
-                    navigate('/');
-                  });
-                }}
-                sx={{
-                  backgroundColor: 'white',
-                  color: '#1976d2',
-                  '&:hover': {
-                    backgroundColor: 'rgba(255, 255, 255, 0.9)'
-                  }
-                }}
+                variant="outlined" 
+                size="small" 
+                onClick={handleSignOut}
+                sx={{ textTransform: 'none' }}
               >
                 Sign Out
               </Button>
-            </>
+            </Box>
           ) : (
             <Button 
-              color="inherit" 
               component={RouterLink} 
-              to="/login"
-              sx={{
-                color: '#1976d2',
-                '&:hover': {
-                  backgroundColor: 'rgba(25, 118, 210, 0.1)'
-                }
-              }}
+              to="/login" 
+              variant="contained" 
+              size="small"
+              sx={{ textTransform: 'none' }}
             >
               Sign In
             </Button>

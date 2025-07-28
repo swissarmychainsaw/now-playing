@@ -1,17 +1,17 @@
-import React from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import { ThemeProvider, CssBaseline, Box, Container } from '@mui/material';
-import { UserProvider } from './context/UserContext';
-import ProtectedRoute from './components/ProtectedRoute';
+import React, { useContext } from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { ThemeProvider, CssBaseline } from '@mui/material';
+import { UserProvider, UserContext } from './context/UserContext';
 import theme from './theme';
 
-// Components
-import Header from './components/Header';
+// Pages
 import LandingPage from './pages/LandingPage';
 import MoviePage from './pages/MoviePage';
 import LoginPage from './pages/LoginPage';
 import LikedMovies from './pages/LikedMovies';
-import MovieCardTest from './pages/MovieCardTest';
+
+// Components
+import Layout from './components/Layout';
 
 // Error Boundary component
 class ErrorBoundary extends React.Component {
@@ -43,35 +43,41 @@ class ErrorBoundary extends React.Component {
   }
 }
 
+// Protected Route Component
+const ProtectedRoute = ({ children }) => {
+  const { user } = useContext(UserContext);
+  
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+  
+  return children;
+};
+
 function App() {
   return (
     <ErrorBoundary>
       <UserProvider>
         <ThemeProvider theme={theme}>
           <CssBaseline />
-          <Box sx={{ flexGrow: 1 }}>
-            <Header />
-            <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
-              <Routes>
-                <Route path="/" element={<LandingPage />} />
-                <Route path="/login" element={<LoginPage />} />
-                <Route path="/movie/:id" element={
+          <Router>
+            <Routes>
+              <Route path="/login" element={<LoginPage />} />
+              <Route
+                path="/"
+                element={
                   <ProtectedRoute>
-                    <MoviePage />
+                    <Layout />
                   </ProtectedRoute>
-                } />
-                <Route path="/movie/search/:query" element={
-                  <MoviePage isSearchResult={true} />
-                } />
-                <Route path="/liked" element={
-                  <ProtectedRoute>
-                    <LikedMovies />
-                  </ProtectedRoute>
-                } />
-                <Route path="/MovieCardTest" element={<MovieCardTest />} />
-              </Routes>
-            </Container>
-          </Box>
+                }
+              >
+                <Route index element={<LandingPage />} />
+                <Route path="movie/:id" element={<MoviePage />} />
+                <Route path="liked" element={<LikedMovies />} />
+              </Route>
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+          </Router>
         </ThemeProvider>
       </UserProvider>
     </ErrorBoundary>

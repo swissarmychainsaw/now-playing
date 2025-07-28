@@ -1,213 +1,237 @@
-import React from 'react';
-import { useNavigate } from 'react-router-dom';
-import {
-  Card,
-  CardMedia,
-  CardContent,
+import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
+import { 
+  Card, 
+  CardMedia, 
+  CardContent, 
+  Typography, 
+  Box, 
+  Button, 
   CardActionArea,
-  Box,
-  Typography,
   IconButton,
   Tooltip,
   Rating,
-  Chip
+  useTheme
 } from '@mui/material';
-import { PlayArrow as PlayArrowIcon, ThumbUp as ThumbUpIcon, ThumbDown as ThumbDownIcon } from '@mui/icons-material';
+import { useUser } from '../context/UserContext';
+import PlayArrowIcon from '@mui/icons-material/PlayArrow';
+import ThumbUpIcon from '@mui/icons-material/ThumbUp';
+import ThumbDownIcon from '@mui/icons-material/ThumbDown';
+import FavoriteIcon from '@mui/icons-material/Favorite';
+import FavoriteBorderIcon from '@mui/icons-material/FavoriteBorder';
 
-const MovieCard = ({ 
-  movie, 
-  isLiked = false, 
-  isDisliked = false,
-  onLike, 
-  onDislike,
-  showActions = true,
-  showOverview = true,
-  showRating = true,
-  onClick
-}) => {
-  const navigate = useNavigate();
+const MovieCard = ({ movie }) => {
+  const theme = useTheme();
+  const { user, updateLikes, updateDislikes } = useUser();
+  const [isHovered, setIsHovered] = useState(false);
   
-  const handleCardClick = (e) => {
-    // Don't navigate if clicking on like/dislike buttons
-    if (e.target.closest('button')) return;
-    if (onClick) {
-      onClick(movie);
+  if (!movie) return null;
+  
+  const { id, title, poster_path, release_date, vote_average, isLiked, isDisliked } = movie;
+  
+  const handleLike = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (user) {
+      updateLikes(id.toString(), isLiked);
     } else {
-      navigate(`/movie/${movie.id}`);
+      // Optionally show login prompt
+      console.log('Please log in to like movies');
     }
   };
-
-  const handleLike = (e) => {
+  
+  const handleDislike = (e) => {
+    e.preventDefault();
     e.stopPropagation();
-    if (onLike) onLike(movie.id);
+    if (user) {
+      updateDislikes(id.toString(), isDisliked);
+    } else {
+      // Optionally show login prompt
+      console.log('Please log in to dislike movies');
+    }
   };
-
-  const handleDislikeClick = (e) => {
-    e.stopPropagation();
-    if (onDislike) onDislike(movie.id);
-  };
-
-  const releaseYear = movie.release_date ? new Date(movie.release_date).getFullYear() : '';
-  const posterUrl = movie.poster_path 
-    ? `https://image.tmdb.org/t/p/w500${movie.poster_path}`
-    : `data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 300 450'%3E%3Crect width='100%25' height='100%25' fill='%23f5f5f5'/%3E%3Ctext x='50%25' y='50%25' font-family='Arial' font-size='24' fill='%23999' text-anchor='middle' dy='.3em'%3ENo Image%3C/text%3E%3C/svg%3E`;
 
   return (
     <Card 
       sx={{ 
-        height: '100%',
-        display: 'flex',
+        height: '100%', 
+        display: 'flex', 
         flexDirection: 'column',
-        '&:hover': {
-          boxShadow: 3,
-          '& .play-button': {
-            opacity: 1,
-          }
-        },
         position: 'relative',
-        overflow: 'visible',
+        overflow: 'hidden',
+        '&:hover': {
+          transform: 'translateY(-8px)',
+          boxShadow: '0 8px 24px 0 rgba(0,0,0,0.12)',
+          '& .movie-actions': {
+            opacity: 1,
+            transform: 'translateY(0)',
+          },
+        },
+        transition: 'all 0.3s ease',
       }}
-      elevation={2}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
     >
       <CardActionArea 
-        onClick={handleCardClick}
+        component={Link} 
+        to={`/movie/${id}`} 
         sx={{ 
-          height: '100%',
+          flexGrow: 1,
           display: 'flex',
           flexDirection: 'column',
-          alignItems: 'flex-start',
+          alignItems: 'stretch',
         }}
       >
-        <Box sx={{ position: 'relative', width: '100%' }}>
+        <Box sx={{ position: 'relative', width: '100%', pt: '150%', overflow: 'hidden' }}>
           <CardMedia
             component="img"
-            sx={{
+            image={poster_path ? `https://image.tmdb.org/t/p/w500${poster_path}` : '/placeholder-movie.jpg'}
+            alt={title}
+            sx={{ 
+              position: 'absolute',
+              top: 0,
+              left: 0,
               width: '100%',
-              aspectRatio: '2/3',
+              height: '100%',
               objectFit: 'cover',
-              borderTopLeftRadius: '8px',
-              borderTopRightRadius: '8px',
+              transition: 'transform 0.3s ease',
+              transform: isHovered ? 'scale(1.05)' : 'scale(1)',
             }}
-            image={posterUrl}
-            alt={movie.title}
           />
+          
+          {/* Rating Badge */}
           <Box 
-            className="play-button"
             sx={{
               position: 'absolute',
-              top: '50%',
-              left: '50%',
-              transform: 'translate(-50%, -50%)',
-              backgroundColor: 'rgba(0, 0, 0, 0.7)',
-              borderRadius: '50%',
-              width: 60,
-              height: 60,
+              top: 8,
+              right: 8,
+              backgroundColor: 'rgba(0, 0, 0, 0.75)',
+              color: 'white',
+              borderRadius: '4px',
+              px: 1,
               display: 'flex',
               alignItems: 'center',
-              justifyContent: 'center',
-              opacity: 0,
-              transition: 'opacity 0.3s ease',
-              '&:hover': {
-                backgroundColor: 'rgba(0, 0, 0, 0.9)',
-              },
+              backdropFilter: 'blur(4px)',
             }}
           >
-            <PlayArrowIcon sx={{ color: 'white', fontSize: 40 }} />
+            <ThumbUpIcon fontSize="small" color="primary" sx={{ mr: 0.5 }} />
+            <Typography variant="body2" fontWeight="bold">
+              {vote_average ? vote_average.toFixed(1) : 'N/A'}
+            </Typography>
+          </Box>
+          
+          {/* Like/Dislike Buttons */}
+          <Box 
+            className="movie-actions"
+            sx={{
+              position: 'absolute',
+              bottom: 0,
+              left: 0,
+              right: 0,
+              p: 1,
+              display: 'flex',
+              justifyContent: 'center',
+              gap: 1,
+              backgroundColor: 'rgba(0, 0, 0, 0.7)',
+              backdropFilter: 'blur(4px)',
+              transform: 'translateY(100%)',
+              opacity: 0,
+              transition: 'all 0.3s ease',
+            }}
+          >
+            <Tooltip title={isLiked ? 'Remove like' : 'Like'} arrow>
+              <IconButton 
+                size="small" 
+                onClick={handleLike}
+                sx={{ 
+                  color: isLiked ? theme.palette.primary.main : 'white',
+                  backgroundColor: isLiked ? 'rgba(25, 118, 210, 0.2)' : 'rgba(255, 255, 255, 0.2)',
+                  '&:hover': {
+                    backgroundColor: isLiked ? 'rgba(25, 118, 210, 0.3)' : 'rgba(255, 255, 255, 0.3)',
+                  },
+                }}
+              >
+                <ThumbUpIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+            
+            <Tooltip title={isDisliked ? 'Remove dislike' : 'Dislike'} arrow>
+              <IconButton 
+                size="small" 
+                onClick={handleDislike}
+                sx={{ 
+                  color: isDisliked ? theme.palette.error.main : 'white',
+                  backgroundColor: isDisliked ? 'rgba(211, 47, 47, 0.2)' : 'rgba(255, 255, 255, 0.2)',
+                  '&:hover': {
+                    backgroundColor: isDisliked ? 'rgba(211, 47, 47, 0.3)' : 'rgba(255, 255, 255, 0.3)',
+                  },
+                }}
+              >
+                <ThumbDownIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
           </Box>
         </Box>
         
-        <CardContent sx={{ flexGrow: 1, width: '100%', p: 2 }}>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1 }}>
-            <Typography variant="subtitle1" component="h3" noWrap sx={{ fontWeight: 600, maxWidth: 'calc(100% - 50px)' }}>
-              {movie.title}
-            </Typography>
-            {releaseYear && (
-              <Typography variant="caption" color="text.secondary" sx={{ whiteSpace: 'nowrap', ml: 1 }}>
-                ({releaseYear})
-              </Typography>
-            )}
-          </Box>
+        <CardContent sx={{ flexGrow: 1, p: 2, width: '100%' }}>
+          <Typography 
+            variant="subtitle1" 
+            component="h3" 
+            noWrap 
+            sx={{ 
+              fontWeight: 500,
+              mb: 0.5,
+            }}
+          >
+            {title}
+          </Typography>
           
-          {showRating && movie.vote_average > 0 && (
-            <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-              <Rating 
-                value={movie.vote_average / 2} 
-                precision={0.5} 
-                readOnly 
-                size="small"
-                sx={{ mr: 1 }}
-              />
-              <Typography variant="caption" color="text.secondary">
-                {movie.vote_average.toFixed(1)}/10
-              </Typography>
-            </Box>
-          )}
-          
-          {movie.genres && movie.genres.length > 0 && (
-            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mb: 1.5 }}>
-              {movie.genres.slice(0, 3).map((genre) => (
-                <Chip 
-                  key={genre.id} 
-                  label={genre.name} 
-                  size="small" 
-                  sx={{ height: 20, fontSize: '0.65rem' }}
-                />
-              ))}
-            </Box>
-          )}
-          
-          {showOverview && movie.overview && (
+          <Box display="flex" justifyContent="space-between" alignItems="center">
             <Typography 
               variant="body2" 
-              color="text.secondary" 
-              sx={{
-                display: '-webkit-box',
-                WebkitLineClamp: 3,
-                WebkitBoxOrient: 'vertical',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                mb: 1.5
+              color="text.secondary"
+              sx={{ 
+                fontSize: '0.8rem',
+                opacity: 0.8,
               }}
             >
-              {movie.overview}
+              {release_date?.substring(0, 4) || 'N/A'}
             </Typography>
-          )}
-          
-          {showActions && (onLike || onDislike) && (
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 'auto', pt: 1, borderTop: '1px solid rgba(0, 0, 0, 0.12)' }}>
-              <Tooltip title={isLiked ? 'Remove like' : 'Like'}>
-                <IconButton 
-                  onClick={handleLike}
-                  size="small"
-                  sx={{
-                    color: isLiked ? 'primary.main' : 'inherit',
-                    '&:hover': {
-                      backgroundColor: isLiked ? 'rgba(25, 118, 210, 0.08)' : 'rgba(0, 0, 0, 0.04)'
-                    }
-                  }}
-                >
-                  <ThumbUpIcon fontSize="small" />
-                </IconButton>
-              </Tooltip>
-              
-              <Tooltip title={isDisliked ? 'Remove dislike' : 'Dislike'}>
-                <IconButton 
-                  onClick={handleDislikeClick}
-                  size="small"
-                  sx={{
-                    color: isDisliked ? 'error.main' : 'inherit',
-                    '&:hover': {
-                      backgroundColor: isDisliked ? 'rgba(211, 47, 47, 0.08)' : 'rgba(0, 0, 0, 0.04)'
-                    }
-                  }}
-                >
-                  <ThumbDownIcon fontSize="small" />
-                </IconButton>
-              </Tooltip>
+            
+            <Box display="flex" alignItems="center">
+              {isLiked ? (
+                <FavoriteIcon color="primary" fontSize="small" sx={{ ml: 0.5 }} />
+              ) : isDisliked ? (
+                <FavoriteBorderIcon color="disabled" fontSize="small" sx={{ ml: 0.5 }} />
+              ) : null}
             </Box>
-          )}
+          </Box>
         </CardContent>
       </CardActionArea>
+      <Box p={2} pt={0} sx={{ mt: 'auto' }}>
+        <Button
+          fullWidth
+          variant="contained"
+          color="primary"
+          size="small"
+          startIcon={<PlayArrowIcon />}
+          component={Link}
+          to={`/movie/${id}`}
+          sx={{ 
+            mb: 1,
+            borderRadius: 1,
+            textTransform: 'none',
+            fontWeight: 500,
+            '&:hover': {
+              transform: 'translateY(-1px)',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
+            },
+            transition: 'all 0.2s ease',
+          }}
+        >
+          View Details
+        </Button>
+      </Box>
     </Card>
   );
 };

@@ -1,90 +1,78 @@
-import React, { useState, useEffect } from 'react';
-import {
-  Box,
-  Typography,
-  Grid,
-  Card,
-  CardMedia,
-  CardContent,
-  CircularProgress,
-  IconButton,
-  Tabs,
-  Tab,
-  Container,
-} from '@mui/material';
-import { ThumbUp as ThumbUpIcon, ThumbDown as ThumbDownIcon } from '@mui/icons-material';
-import axios from 'axios';
+import React, { useEffect, useState } from 'react';
+import { Box, Typography, Grid, CircularProgress, Button } from '@mui/material';
 import { useUser } from '../context/UserContext';
 import MovieCard from '../components/MovieCard';
+import { getMovieDetails } from '../services/tmdb';
 
 const LikedMovies = () => {
-  const [tab, setTab] = useState(0);
-  const [likedMovies, setLikedMovies] = useState([]);
-  const [dislikedMovies, setDislikedMovies] = useState([]);
+  const { user, likes = [] } = useUser();
+  const [movies, setMovies] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const { likes, dislikes, updateLikes, updateDislikes } = useUser();
+  const [error, setError] = useState(null);
 
   useEffect(() => {
-    const fetchMovies = async () => {
+    const fetchLikedMovies = async () => {
       try {
-        // Fetch liked movies
-        const likedMovieIds = Array.isArray(likes) ? likes : [];
-        const dislikedMovieIds = Array.isArray(dislikes) ? dislikes : [];
-
-        // Fetch liked movies
-        if (likedMovieIds.length > 0) {
-          const likedPromises = likedMovieIds.map(id => 
-            axios.get(`https://api.themoviedb.org/3/movie/${id}`, {
-              params: {
-                api_key: process.env.REACT_APP_TMDB_API_KEY
-              }
-            })
-          );
-          const likedResponses = await Promise.all(likedPromises);
-          const likedMovies = likedResponses.map(response => response.data);
-          setLikedMovies(likedMovies);
-        } else {
-          setLikedMovies([]);
+        setLoading(true);
+        
+        if (!user) {
+          setError('Please sign in to view your liked movies');
+          setLoading(false);
+          return;
         }
 
-        // Fetch disliked movies
-        if (dislikedMovieIds.length > 0) {
-          const dislikedPromises = dislikedMovieIds.map(id => 
-            axios.get(`https://api.themoviedb.org/3/movie/${id}`, {
-              params: {
-                api_key: process.env.REACT_APP_TMDB_API_KEY
-              }
-            })
-          );
-          const dislikedResponses = await Promise.all(dislikedPromises);
-          const dislikedMovies = dislikedResponses.map(response => response.data);
-          setDislikedMovies(dislikedMovies);
-        } else {
-          setDislikedMovies([]);
+        if (likes.length === 0) {
+          setMovies([]);
+          setLoading(false);
+          return;
         }
+
+        // Fetch details for each liked movie
+        const moviePromises = likes.map(movieId => 
+          getMovieDetails(movieId)
+            .then(movie => ({
+              ...movie,
+              isLiked: true,
+              isDisliked: false
+            }))
+            .catch(() => null) // Skip any failed requests
+        );
+
+        const movieResults = await Promise.all(moviePromises);
+        setMovies(movieResults.filter(Boolean));
+        
       } catch (err) {
-        console.error('Error fetching movies:', err);
-        setError('Error fetching movies');
+        console.error('Error fetching liked movies:', err);
+        setError('Failed to load liked movies. Please try again later.');
       } finally {
         setLoading(false);
       }
     };
 
-    fetchMovies();
-  }, [likes, dislikes]);
+    fetchLikedMovies();
+  }, [user, likes]);
 
-  const handleDislike = async (movieId) => {
-    try {
-      await updateDislikes(movieId);
-    } catch (error) {
-      console.error('Error updating dislikes:', error);
-    }
-  };
+  if (!user) {
+    return (
+      <Box textAlign="center" my={8}>
+        <Typography variant="h5" gutterBottom>
+          Sign in to view your liked movies
+        </Typography>
+        <Button 
+          variant="contained" 
+          color="primary"
+          href="/login"
+          sx={{ mt: 2 }}
+        >
+          Sign In
+        </Button>
+      </Box>
+    );
+  }
 
   if (loading) {
     return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', my: 4 }}>
+      <Box display="flex" justifyContent="center" my={8}>
         <CircularProgress />
       </Box>
     );
@@ -92,81 +80,49 @@ const LikedMovies = () => {
 
   if (error) {
     return (
-      <Box sx={{ textAlign: 'center', my: 4 }}>
-        <Typography color="error">{error}</Typography>
-      </Box>
-    );
-  }
-
-  if (likes.length === 0 && dislikes.length === 0) {
-    return (
-      <Box sx={{ textAlign: 'center', my: 4 }}>
-        <Typography variant="h5">No liked or disliked movies yet</Typography>
-        <Typography variant="body1" sx={{ mt: 2 }}>
-          Start liking or disliking movies on the landing page to see them here!
-        </Typography>
+      <Box textAlign="center" my={4}>
+        <Typography color="error" gutterBottom>{error}</Typography>
+        <Button 
+          variant="outlined" 
+          onClick={() => window.location.reload()}
+          sx={{ mt: 2 }}
+        >
+          Retry
+        </Button>
       </Box>
     );
   }
 
   return (
-    <Container>
-      <Typography variant="h4" component="h1" sx={{ mb: 4 }}>
-        Your Movie Preferences
+    <Box sx={{ py: 4 }}>
+      <Typography variant="h4" component="h1" gutterBottom>
+        My Liked Movies
       </Typography>
-      <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
-        <Tabs value={tab} onChange={(e, newValue) => setTab(newValue)}>
-          <Tab label="Liked Movies" />
-          <Tab label="Disliked Movies" />
-        </Tabs>
-      </Box>
       
-      <Box sx={{ mt: 4 }}>
-        {tab === 0 ? (
-          <>
-            {likedMovies.length === 0 ? (
-              <Typography variant="h5" sx={{ textAlign: 'center', mt: 4 }}>
-                No liked movies yet
-              </Typography>
-            ) : (
-              <Grid container spacing={3}>
-                {likedMovies.map((movie) => (
-                  <Grid item xs={12} sm={6} md={4} key={movie.id}>
-                    <MovieCard
-                      movie={movie}
-                      isLiked={true}
-                      onUnlike={updateDislikes}
-                      onDislike={updateDislikes}
-                    />
-                  </Grid>
-                ))}
-              </Grid>
-            )}
-          </>
-        ) : (
-          <>
-            {dislikedMovies.length === 0 ? (
-              <Typography variant="h5" sx={{ textAlign: 'center', mt: 4 }}>
-                No disliked movies yet
-              </Typography>
-            ) : (
-              <Grid container spacing={3}>
-                {dislikedMovies.map((movie) => (
-                  <Grid item xs={12} sm={6} md={4} key={movie.id}>
-                    <MovieCard
-                      movie={movie}
-                      isLiked={false}
-                      onUnlike={updateLikes}
-                      onDislike={updateLikes}
-                    />
-                  </Grid>
-                ))}
-              </Grid>
-            )}
-          </>
-        )}
-      </Box>
-    </Container>
+      {movies.length === 0 ? (
+        <Box textAlign="center" my={8}>
+          <Typography variant="h6" color="text.secondary">
+            You haven't liked any movies yet.
+          </Typography>
+          <Button 
+            variant="contained" 
+            color="primary"
+            href="/"
+            sx={{ mt: 2 }}
+          >
+            Browse Movies
+          </Button>
+        </Box>
+      ) : (
+        <Grid container spacing={4}>
+          {movies.map((movie) => (
+            <Grid item key={movie.id} xs={12} sm={6} md={4} lg={3}>
+              <MovieCard movie={movie} />
+            </Grid>
+          ))}
+        </Grid>
+      )}
+    </Box>
   );
 };
 

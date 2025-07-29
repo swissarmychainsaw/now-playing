@@ -10,8 +10,6 @@ import {
   CardActions,
   IconButton,
   Tooltip,
-  Rating,
-  useTheme,
   Chip
 } from '@mui/material';
 import { useUser } from '../context/UserContext';
@@ -22,7 +20,6 @@ import TheatersIcon from '@mui/icons-material/Theaters';
 import StarIcon from '@mui/icons-material/Star';
 
 const MovieCard = ({ movie }) => {
-  const theme = useTheme();
   const { user, updateLikes, updateDislikes } = useUser();
   const [isHovered, setIsHovered] = useState(false);
   
@@ -59,26 +56,23 @@ const MovieCard = ({ movie }) => {
     if (user) {
       updateDislikes(id.toString(), isDisliked);
     }
-  }
   };
 
   return (
     <Card 
       sx={{ 
-        height: '100%', 
-        display: 'flex', 
-        flexDirection: 'column',
         position: 'relative',
+        height: '100%',
+        display: 'flex',
+        flexDirection: 'column',
+        borderRadius: 2,
         overflow: 'hidden',
+        boxShadow: 2,
+        transition: 'all 0.3s ease-in-out',
         '&:hover': {
           transform: 'translateY(-8px)',
-          boxShadow: '0 8px 24px 0 rgba(0,0,0,0.12)',
-          '& .movie-actions': {
-            opacity: 1,
-            transform: 'translateY(0)',
-          },
+          boxShadow: 8,
         },
-        transition: 'all 0.3s ease',
       }}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
@@ -260,23 +254,11 @@ const MovieCard = ({ movie }) => {
                 color={isDisliked ? 'error' : 'default'}
               >
                 <ThumbDownIcon fontSize="small" />
-          component={Link}
-          to={`/movie/${id}`}
-          sx={{ 
-            mb: 1,
-            borderRadius: 1,
-            textTransform: 'none',
-            fontWeight: 500,
-            '&:hover': {
-              transform: 'translateY(-1px)',
-              boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
-            },
-            transition: 'all 0.2s ease',
-          }}
-        >
-          View Details
-        </Button>
-      </Box>
+              </IconButton>
+            </Tooltip>
+          </CardActions>
+        </Box>
+      </CardContent>
     </Card>
   );
 };

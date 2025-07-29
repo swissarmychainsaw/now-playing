@@ -103,7 +103,7 @@ const LandingPage = () => {
     <Container maxWidth="lg" sx={{ mt: 4, mb: 8 }}>
       <Box sx={{ textAlign: 'center', mb: 6 }}>
         <Typography variant="h3" component="h1" gutterBottom>
-          Discover Your Next Favorite Movie
+          Discover Your Next Favorite MOVIESIEISI
         </Typography>
         <Typography variant="h6" color="text.secondary" sx={{ mb: 4 }}>
           Find, explore, and track movies you love

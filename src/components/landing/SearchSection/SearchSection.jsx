@@ -5,10 +5,28 @@ import styles from './SearchSection.module.css';
 
 const SearchSection = ({ searchTerm, onSearchChange, onSearchSubmit }) => {
   return (
-    <Paper elevation={3} className={styles.searchContainer}>
+    <div style={{
+      backgroundImage: 'url("/images/Discover.png")',
+      backgroundSize: 'cover',
+      backgroundPosition: 'center',
+      padding: '3rem 2rem',
+      borderRadius: '12px',
+      marginBottom: '2rem',
+      position: 'relative'
+    }}>
+      <div style={{
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: 'rgba(255, 255, 255, 0.85)',
+        zIndex: 1
+      }}></div>
       <Box 
         component="form" 
         onSubmit={onSearchSubmit}
+        style={{ position: 'relative', zIndex: 2 }}
         className={styles.searchForm}
       >
         <TextField
@@ -31,7 +49,7 @@ const SearchSection = ({ searchTerm, onSearchChange, onSearchSubmit }) => {
           Search
         </Button>
       </Box>
-    </Paper>
+    </div>
   );
 };
 

@@ -133,9 +133,13 @@ dislikes: Array of movie IDs the user has disliked
 lastUpdated: Timestamp of the last update
 3. Data Usage Across Pages
 a) Login Page (/login)
-Handles Google sign-in
-Creates/updates user document in Firestore upon first sign-in
-Stores basic user info (email, display name) from Google profile
+- Should have identical appearance to the landing page
+- The entire page should be clickable, with any click triggering Google authentication
+- No visible buttons or forms - the entire page serves as the login trigger
+- After successful authentication, redirects to the home page
+- Handles Google sign-in
+- Creates/updates user document in Firestore upon first sign-in
+- Stores basic user info (email, display name) from Google profile
 b) Landing Page (/)
 Displays personalized movie recommendations
 Uses user's 

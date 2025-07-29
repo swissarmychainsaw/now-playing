@@ -1,39 +1,45 @@
-.searchContainer {
+.container {
   position: relative;
-  padding: 3rem 2rem;
-  border-radius: 12px;
-  margin-bottom: 2rem;
+  width: 100%;
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: 16px;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
   overflow: hidden;
-  background-color: #f8f9fa;
+  backdrop-filter: blur(5px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  padding: 2rem;
+  max-width: 800px;
+  margin: 0 auto;
 }
 
-.searchContainer::before {
-  content: '';
+.overlay {
   position: absolute;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
-  background-image: url('/images/Discover.png');
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
-  opacity: 0.15;
-  z-index: 0;
+  background-color: rgba(255, 255, 255, 0.85);
+  z-index: 1;
 }
 
 .searchForm {
   display: flex;
-  gap: 1rem;
-  align-items: center;
+  flex-direction: column;
+  gap: 1.5rem;
+  width: 100%;
   position: relative;
-  z-index: 1;
+  z-index: 2;
 }
 
 .searchInput {
   background-color: white;
-  border-radius: 4px;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s ease;
+}
+
+.searchInput:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
 .searchIcon {
@@ -42,12 +48,20 @@
 }
 
 .searchButton {
-  height: 56px; /* Match TextField height */
+  height: 56px;
   white-space: nowrap;
-  padding: 0 24px;
+  padding: 0 32px;
   font-weight: 600;
   text-transform: none;
-  box-shadow: none;
+  border-radius: 8px;
+  font-size: 1.1rem;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.searchButton:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
 }
 
 .searchButton:hover {

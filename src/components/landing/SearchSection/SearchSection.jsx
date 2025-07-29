@@ -1,40 +1,48 @@
 import React from 'react';
-import { Box, TextField, Button, Paper } from '@mui/material';
+import { Box, TextField, Button } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
 import styles from './SearchSection.module.css';
+import discoverImage from '../../../assets/images/Discover.png';
 
-const SearchSection = ({ searchTerm, onSearchChange, onSearchSubmit }) => {
+const SearchSection = ({ searchTerm = '', onSearchChange, onSearchSubmit }) => {
+  const [localSearchTerm, setLocalSearchTerm] = React.useState(searchTerm);
+
+  React.useEffect(() => {
+    setLocalSearchTerm(searchTerm);
+  }, [searchTerm]);
+
+  const handleFormSubmit = (e) => {
+    e.preventDefault();
+    if (onSearchSubmit) {
+      onSearchSubmit(localSearchTerm);
+    }
+  };
+
+  const handleInputChange = (e) => {
+    const value = e.target.value;
+    setLocalSearchTerm(value);
+    if (onSearchChange) {
+      onSearchChange(e);
+    }
+  };
+
   return (
-    <div style={{
-      backgroundImage: 'url("/images/Discover.png")',
-      backgroundSize: 'cover',
-      backgroundPosition: 'center',
-      padding: '3rem 2rem',
-      borderRadius: '12px',
-      marginBottom: '2rem',
-      position: 'relative'
-    }}>
-      <div style={{
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        backgroundColor: 'rgba(255, 255, 255, 0.85)',
-        zIndex: 1
-      }}></div>
+    <div 
+      className={styles.container}
+      style={{ backgroundImage: `url(${discoverImage})` }}
+    >
+      <div className={styles.overlay} />
       <Box 
-        component="form" 
-        onSubmit={onSearchSubmit}
-        style={{ position: 'relative', zIndex: 2 }}
+        component="form"
         className={styles.searchForm}
+        onSubmit={handleFormSubmit}
       >
         <TextField
           fullWidth
           variant="outlined"
           placeholder="Search for movies..."
-          value={searchTerm}
-          onChange={onSearchChange}
+          value={localSearchTerm}
+          onChange={handleInputChange}
           InputProps={{
             startAdornment: <SearchIcon className={styles.searchIcon} />,
             className: styles.searchInput

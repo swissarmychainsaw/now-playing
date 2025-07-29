@@ -13,6 +13,7 @@ import {
 } from '@mui/material';
 import { ExitToApp as SignOutIcon } from '@mui/icons-material';
 import { useUser } from '../context/UserContext';
+import NowPlayingLogo from '../assets/images/nowplaying.png';
 
 // Custom styled components for the header
 const StyledAppBar = styled(AppBar)(({ theme }) => ({
@@ -87,24 +88,32 @@ const Header = () => {
           sx={{ 
             textDecoration: 'none',
             display: 'flex',
-            alignItems: 'center'
+            alignItems: 'center',
+            height: 50 // Adjust based on your image's aspect ratio
           }}
         >
-          <LogoText>Now Playing</LogoText>
+          <img 
+            src={NowPlayingLogo} 
+            alt="Now Playing" 
+            style={{ 
+              height: '100%', 
+              width: 'auto',
+              maxWidth: '200px' // Adjust based on your image's dimensions
+            }} 
+          />
         </Box>
 
-        {/* User Controls */}
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          {user ? (
-            <>
-              {/* My Ratings Button */}
-              <ActionButton 
-                component={RouterLink}
-                to="/ratings"
-                startIcon={<span style={{ fontSize: '1.1rem' }}>★</span>}
-              >
-                My Ratings
-              </ActionButton>
+        {/* User Controls - Only show when user is logged in */}
+        {user && (
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            {/* My Ratings Button */}
+            <ActionButton 
+              component={RouterLink}
+              to="/ratings"
+              startIcon={<span style={{ fontSize: '1.1rem' }}>★</span>}
+            >
+              My Ratings
+            </ActionButton>
               
               {/* User Avatar */}
               <IconButton
@@ -172,11 +181,11 @@ const Header = () => {
                   },
                 }}
               >
-                <Box sx={{ px: 2, py: 1.5, bgcolor: 'primary.main', color: 'white' }}>
-                  <Typography variant="subtitle2" fontWeight={600}>
+                <Box sx={{ px: 2, py: 1.5, bgcolor: 'primary.main', color: 'primary.contrastText' }}>
+                  <Typography variant="subtitle2" fontWeight={600} color="primary.contrastText">
                     {user.displayName || 'User'}
                   </Typography>
-                  <Typography variant="caption" sx={{ opacity: 0.8, display: 'block' }}>
+                  <Typography variant="caption" sx={{ opacity: 0.8, display: 'block', color: 'primary.contrastText' }}>
                     {user.email}
                   </Typography>
                 </Box>
@@ -191,6 +200,7 @@ const Header = () => {
                     py: 1.5,
                     m: 0,
                     border: 'none',
+                    color: 'primary.main',
                     borderTop: '1px solid rgba(0,0,0,0.1)',
                     '&:hover': {
                       backgroundColor: 'rgba(0,0,0,0.05)'
@@ -201,17 +211,8 @@ const Header = () => {
                   Sign Out
                 </ActionButton>
               </Menu>
-            </>
-          ) : (
-            <ActionButton 
-              component={RouterLink}
-              to="/login"
-              startIcon={<span style={{ fontSize: '1.1rem' }}>→</span>}
-            >
-              Sign In
-            </ActionButton>
-          )}
-        </Box>
+          </Box>
+        )}
       </Toolbar>
     </StyledAppBar>
   );

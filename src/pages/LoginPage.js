@@ -11,6 +11,7 @@ import {
   getPersonalizedRecommendations
 } from '../services/recommendations';
 import MovieCard from '../components/MovieCard';
+import dinkImage from '../assets/images/DINK.png';
 
 const CATEGORIES = [
   { id: 'forYou', label: 'For You', fetchFn: getForYouRecommendations },
@@ -90,31 +91,78 @@ const LoginPage = () => {
           justifyContent: 'center',
           zIndex: 1000,
           cursor: 'pointer',
+          padding: 2,
         }}
         onClick={handlePageClick}
       >
         <Box
           sx={{
-            backgroundColor: 'rgba(0, 0, 0, 0.8)',
-            padding: 4,
-            borderRadius: 2,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
             textAlign: 'center',
-            maxWidth: '80%',
+            maxWidth: '90%',
+            width: '100%',
+            maxWidth: 800,
+            position: 'relative',
           }}
         >
-          <Typography variant="h4" component="h1" color="white" gutterBottom>
-            Welcome to Now Playing
+          {/* DINK Image */}
+          <Box
+            component="img"
+            src={dinkImage}
+            alt="Dual Income No Kids"
+            sx={{
+              maxWidth: '100%',
+              height: 'auto',
+              maxHeight: '60vh',
+              objectFit: 'contain',
+              mb: 3,
+              filter: 'drop-shadow(0 4px 20px rgba(0, 0, 0, 0.5))',
+            }}
+          />
+          
+          {/* Login Prompt */}
+          <Typography 
+            variant="h5" 
+            component="p" 
+            sx={{
+              color: 'white',
+              backgroundColor: 'rgba(0, 0, 0, 0.7)',
+              px: 3,
+              py: 1.5,
+              borderRadius: 2,
+              mt: 2,
+              fontWeight: 500,
+              backdropFilter: 'blur(4px)',
+              border: '1px solid rgba(255, 255, 255, 0.1)',
+            }}
+          >
+            Click anywhere to log into Google
           </Typography>
-          <Typography variant="h6" color="white" paragraph>
-            Click anywhere to sign in with Google
-          </Typography>
+          
+          {/* Loading and Error States */}
           {loading && (
-            <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
-              <CircularProgress color="primary" />
+            <Box sx={{ 
+              position: 'absolute',
+              bottom: -60,
+              backgroundColor: 'rgba(0, 0, 0, 0.7)',
+              px: 3,
+              py: 1.5,
+              borderRadius: 2,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 2,
+            }}>
+              <CircularProgress size={24} color="primary" />
+              <Typography variant="body1" color="white">
+                Signing in...
+              </Typography>
             </Box>
           )}
           {error && (
-            <Typography color="error" sx={{ mt: 2 }}>
+            <Typography color="error" sx={{ mt: 2, backgroundColor: 'rgba(0, 0, 0, 0.7)', px: 2, py: 1, borderRadius: 1 }}>
               {error}
             </Typography>
           )}

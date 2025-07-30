@@ -1,6 +1,8 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
+import { AuthProvider } from './context/AuthContext';
 import { UserProvider } from './context/UserContext';
+import { RatingsProvider } from './context/RatingsContext';
 import ErrorBoundary from './components/ErrorBoundary/ErrorBoundary';
 import Header from './components/Header/Header';
 import Home from './pages/Home/Home';
@@ -12,7 +14,9 @@ import { ProtectedRoute } from './components/Auth/ProtectedRoute';
 
 function App() {
   return (
-    <UserProvider>
+    <AuthProvider>
+      <UserProvider>
+        <RatingsProvider>
       <div className="min-h-screen bg-gray-50 flex flex-col">
         <Header />
         <Toaster position="top-right" />
@@ -58,7 +62,9 @@ function App() {
           </Routes>
         </main>
       </div>
-    </UserProvider>
+        </RatingsProvider>
+      </UserProvider>
+    </AuthProvider>
   );
 }
 

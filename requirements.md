@@ -91,6 +91,178 @@ AI Prompt Example: Create a React component called MovieCard styled with Tailw
 * Has a hover effect and rounded corners
 * Calls onSelect(movie) when clicked
 
+
+Trailer Enhancement Implementation Documentation
+Overview
+This document details the implementation of an enhanced trailer fetching system that utilizes multiple data sources to maximize trailer availability across the movie catalog. The system first attempts to fetch trailers from The Movie Database (TMDB) and falls back to the Open Movie Database (OMDb) when necessary.
+Technical Implementation
+1. Data Flow Architecture
+
+
+
+┌─────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│  Movie Page │───>│  fetchTrailer   │───>│   TMDB API      │
+│  Loads      │    │  (TMDB)         │    │  (Primary)      │
+└──────┬──────┘    └────────┬────────┘    └────────┬────────┘
+       │                    │                       │
+       │                    │  No Trailer Found    │
+       │                    │<──────────────────────┘
+       │                    │
+       │                    │  ┌─────────────────┐
+       │                    └─>│  fetchOMDb      │
+       │                       │  Trailer        │
+       │                       └────────┬────────┘
+       │                                │
+       │                    ┌───────────▼───────────┐
+       └───────────────────┤  Display Trailer       │
+                           │  or Fallback UI        │
+                           └────────────────────────┘
+2. Key Components
+A. fetchOMDbTrailer Function
+* Purpose: Fetches trailer or poster information from OMDb
+* Parameters:
+    * imdbId: The IMDb ID of the movie (most reliable)
+    * title: Movie title (fallback when no IMDb ID)
+    * year: Release year (improves search accuracy)
+* Behavior:
+    1. First attempts to fetch using IMDb ID if available
+    2. Falls back to title and year search if no IMDb ID
+    3. Extracts YouTube video IDs from OMDb responses
+    4. Returns either a YouTube embed URL or poster URL
+B. fetchMovieVideos Function
+* Purpose: Main function to retrieve trailer using fallback strategy
+* Flow:
+    1. Attempts to fetch from TMDB first
+    2. If no trailer found, falls back to OMDb
+    3. Returns the first valid trailer URL found or null
+3. API Integration Details
+TMDB Integration
+* Endpoint: https://api.themoviedb.org/3/movie/{id}/videos
+* Authentication: API key required
+* Response Handling:
+    * Looks for official trailers first
+    * Falls back to any trailer if no official one found
+    * Prioritizes YouTube as the video source
+OMDb Integration
+* Endpoint: https://www.omdbapi.com/
+* Authentication: API key required
+* Search Methods:
+    1. IMDb ID lookup (most accurate)
+    2. Title + year search (fallback)
+* Response Handling:
+    * Extracts YouTube links from the Website field
+    * Falls back to movie poster if no trailer available
+4. Error Handling
+Network Errors
+* Logs detailed error information
+* Gracefully continues to next fallback method
+* Prevents UI crashes
+API-Specific Errors
+* Handles rate limiting (429 responses)
+* Validates API responses
+* Provides meaningful error messages
+5. Performance Considerations
+Caching
+* Implemented response caching to reduce API calls
+* Caches trailer URLs to prevent redundant fetches
+Lazy Loading
+* Trailer iframes are only loaded when needed
+* Reduces initial page load time
+6. Environment Variables
+plaintext
+
+
+# Required API Keys
+VITE_TMDB_API_KEY=your_tmdb_api_key
+VITE_OMDB_API_KEY=your_omdb_api_key
+User Experience
+Trailer Availability States
+1. Trailer Available
+    * Shows "Watch Trailer" button
+    * Clicking opens trailer in a modal
+    * Responsive video player
+2. No Trailer Available
+    * No trailer button shown
+    * Clean UI without empty states
+3. Loading State
+    * Shows loading indicator
+    * Prevents multiple clicks
+Testing Protocol
+Test Cases
+1. TMDB Trailer Available
+    * Verify trailer loads from TMDB
+    * Verify button appears and works
+2. OMDb Fallback
+    * Mock TMDB to return no trailers
+    * Verify OMDb fallback works
+    * Check console logs for fallback flow
+3. No Trailer Available
+    * Mock both APIs to return no trailers
+    * Verify clean UI without button
+4. Error Cases
+    * Test network failures
+    * Test invalid API keys
+    * Test rate limiting
+Monitoring and Logging
+Console Logs
+* Detailed logging of trailer fetching process
+* Error tracking
+* Performance metrics
+Analytics Events
+* Trailer load success/failure
+* Source of trailer (TMDB/OMDb)
+* Playback metrics
+Future Enhancements
+1. Additional Data Sources
+    * YouTube Data API
+    * JustWatch API
+    * IMDB API
+2. User Experience
+    * "Request Trailer" feature
+    * Trailer quality selection
+    * Offline viewing
+3. Performance
+    * Prefetch trailers
+    * Better caching strategy
+    * CDN for trailer assets
+Dependencies
+* React (v18+)
+* TMDB API
+* OMDb API
+* React Router (for navigation)
+Security Considerations
+1. API Keys
+    * Never exposed in client-side code
+    * Stored in environment variables
+    * Rate limited on the server side
+2. Content Security
+    * Iframe sandboxing
+    * XSS protection
+    * Safe URL handling
+Browser Support
+* Chrome (latest)
+* Firefox (latest)
+* Safari (latest)
+* Edge (latest)
+Mobile Considerations
+* Touch-friendly controls
+* Responsive video player
+* Data usage optimization
+Accessibility
+* Keyboard navigation
+* Screen reader support
+* ARIA labels
+* High contrast mode
+Performance Metrics
+* Time to first trailer frame
+* API response times
+* Cache hit rates
+* Error rates
+This documentation provides a comprehensive overview of the trailer enhancement implementation. The system is designed to be robust, maintainable, and provide the best possible user experience while efficiently managing API resources.
+
+
+
+
 PAGE: LandingPage or Home
 Purpose: Displays the search box, category tabs, and a grid of 5 movie recommendations 
 Includes: Header, SearchBox, RecommendationTabs, MovieCard grid

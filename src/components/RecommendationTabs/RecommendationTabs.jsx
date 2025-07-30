@@ -26,7 +26,7 @@ const RecommendationTabs = ({
 
   // Handle tab change with loading state
   const handleTabChange = (tabId) => {
-    if (isLoading || activeTab === tabId) return;
+    if (isLoading) return; // Only prevent if already loading
     onTabChange(tabId);
   };
 

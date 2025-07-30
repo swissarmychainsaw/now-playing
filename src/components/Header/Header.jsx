@@ -1,11 +1,11 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { useState } from 'react';
 import { FaChevronDown, FaSignOutAlt, FaUser } from 'react-icons/fa';
-import { useUser } from '../../context/UserContext';
+import { useAuth } from '../../context/AuthContext';
 import { toast } from 'react-hot-toast';
 
 const Header = () => {
-  const { user, signOut } = useUser();
+  const { user, signOut } = useAuth();
   const [showDropdown, setShowDropdown] = useState(false);
   const navigate = useNavigate();
 
@@ -28,13 +28,7 @@ const Header = () => {
           </span>
         </Link>
         
-        <nav className="hidden md:flex items-center space-x-6">
-          <Link to="/" className="text-gray-700 hover:text-capri transition-colors">
-            Home
-          </Link>
-          <Link to="/movies" className="text-gray-700 hover:text-capri transition-colors">
-            Movies
-          </Link>
+        <nav className="hidden md:flex items-center">
           {user && (
             <Link to="/my-ratings" className="text-gray-700 hover:text-capri transition-colors">
               My Ratings
@@ -45,13 +39,6 @@ const Header = () => {
         <div className="relative">
           {user ? (
             <div className="flex items-center space-x-4">
-              <Link
-                to="/my-ratings"
-                className="hidden md:flex items-center px-4 py-2 text-sm font-medium text-gray-700 hover:text-indigo-600 transition-colors"
-              >
-                My Ratings
-              </Link>
-              
               <div className="relative">
                 <button
                   onClick={() => setShowDropdown(!showDropdown)}

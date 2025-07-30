@@ -1,9 +1,10 @@
 import { useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { useUser } from '../../context/UserContext';
+import { useAuth } from '../../context/AuthContext'; // assuming AuthContext is in contexts/AuthContext.js
+// User state is now managed by AuthContext
 
 const Login = () => {
-  const { signInWithGoogle, user } = useUser();
+  const { signInWithGoogle, user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 

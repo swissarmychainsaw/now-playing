@@ -3,7 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import SearchBox from '../../components/SearchBox/SearchBox';
 import RecommendationTabs from '../../components/RecommendationTabs/RecommendationTabs';
 import MovieCard from '../../components/MovieCard/MovieCard';
-import { useUser } from '../../context/UserContext';
+import { useAuth } from '../../context/AuthContext';
+import { useRatings } from '../../context/RatingsContext';
 
 // Sample list of recent Oscar winners (in a real app, you'd want to fetch this)
 const oscarWinners = [
@@ -31,7 +32,8 @@ const Home = () => {
   const [oscarPage, setOscarPage] = useState(0);
   
   // Hooks
-  const { user, ratings, rateMovie } = useUser();
+  const { user } = useAuth();
+  const { ratings, rateMovie } = useRatings();
   const hasRatings = Object.keys(ratings).length > 0;
   
   // Handle rating a movie
@@ -56,8 +58,25 @@ const Home = () => {
       console.log('API Key:', apiKey ? 'Found' : 'Not found');
       let url = '';
       
-      // If this is a new tab click, generate a new random page
-      const page = options.page || getRandomPage();
+      // Determine which page to use based on the tab
+      let page = options.page;
+      if (!page) {
+        // If no page is provided in options, use the appropriate page state
+        switch(tab) {
+          case 'popular':
+            page = popularPage;
+            break;
+          case 'criticsPicks':
+            page = criticsPage;
+            break;
+          case 'oscarWinners':
+            page = oscarPage;
+            break;
+          default:
+            // For 'forYou' tab or any other tab, use a random page
+            page = getRandomPage();
+        }
+      }
       
       switch(tab) {
         case 'forYou':
@@ -136,23 +155,39 @@ const Home = () => {
 
   // Handlers
   const handleTabChange = useCallback((tab) => {
-    // Only update if it's a different tab
-    if (tab !== activeTab) {
-      setActiveTab(tab);
-      // Clear current movies immediately to show loading state
-      setMovies([]);
-      // Reset page counters when changing tabs
-      if (tab === 'popular') setPopularPage(1);
-      if (tab === 'criticsPicks') setCriticsPage(1);
-      if (tab === 'oscarWinners') setOscarPage(1);
-    } else {
-      // If clicking the same tab, refresh with new random movies
-      setMovies([]);
-      if (tab === 'popular') setPopularPage(prev => prev + 1);
-      if (tab === 'criticsPicks') setCriticsPage(prev => prev + 1);
-      if (tab === 'oscarWinners') setOscarPage(prev => prev + 1);
+    // Always clear current movies immediately to show loading state
+    setMovies([]);
+    
+    // Always update the active tab to ensure UI updates
+    setActiveTab(tab);
+    
+    // For the 'For You' tab, always use a new random page
+    if (tab === 'forYou') {
+      fetchMovies(tab, { page: getRandomPage() });
+      return;
     }
-  }, [activeTab]);
+    
+    // For other tabs, increment the page counter to get new movies
+    if (tab === 'popular') {
+      setPopularPage(prev => {
+        const newPage = prev + 1;
+        fetchMovies(tab, { page: newPage });
+        return newPage;
+      });
+    } else if (tab === 'criticsPicks') {
+      setCriticsPage(prev => {
+        const newPage = prev + 1;
+        fetchMovies(tab, { page: newPage });
+        return newPage;
+      });
+    } else if (tab === 'oscarWinners') {
+      setOscarPage(prev => {
+        const newPage = prev + 1;
+        fetchMovies(tab, { page: newPage });
+        return newPage;
+      });
+    }
+  }, [activeTab, fetchMovies]);
 
   const handleLoadMore = useCallback(() => {
     if (activeTab === 'popular') {
@@ -170,10 +205,15 @@ const Home = () => {
     }
   }, [activeTab, popularPage, criticsPage, oscarPage, fetchMovies]);
 
-  // Effects
+  // Effects - only fetch when activeTab changes
   useEffect(() => {
-    fetchMovies();
-  }, [activeTab, popularPage, criticsPage, oscarPage]); // Refetch when tab or page changes
+    // Initial fetch when component mounts or activeTab changes
+    if (activeTab === 'forYou') {
+      fetchMovies(activeTab, { page: getRandomPage() });
+    } else {
+      fetchMovies(activeTab, { page: 1 });
+    }
+  }, [activeTab]); // Only re-run when activeTab changes
 
   return (
     <div className="min-h-screen bg-gray-50">

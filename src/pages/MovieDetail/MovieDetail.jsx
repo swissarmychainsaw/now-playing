@@ -11,30 +11,109 @@ const MovieDetail = () => {
   const [error, setError] = useState(null);
   const [userRating, setUserRating] = useState(null);
 
-  // Fetch movie videos (trailers)
-  const fetchMovieVideos = async (movieId) => {
+  // Function to fetch trailer from OMDb
+  const fetchOMDbTrailer = async (imdbId, title, year) => {
+    try {
+      const apiKey = import.meta.env.VITE_OMDB_API_KEY;
+      if (!apiKey) {
+        console.error('OMDb API key not found');
+        return null;
+      }
+
+      // Try with IMDb ID first if available
+      if (imdbId) {
+        const response = await fetch(
+          `https://www.omdbapi.com/?i=${imdbId}&apikey=${apiKey}`
+        );
+        
+        if (response.ok) {
+          const data = await response.json();
+          if (data.Response === 'True' && data.Poster && data.Poster !== 'N/A') {
+            // OMDb returns YouTube video IDs in the format: https://www.youtube.com/watch?v=VIDEO_ID
+            // We need to extract the video ID and format it for embedding
+            if (data.Website && data.Website.includes('youtube.com')) {
+              const videoId = data.Website.split('v=')[1];
+              if (videoId) {
+                return `https://www.youtube.com/embed/${videoId}`;
+              }
+            }
+            // If no YouTube link, return the poster as fallback
+            return data.Poster;
+          }
+        }
+      }
+
+      // Fallback to search by title and year
+      if (title) {
+        const searchTitle = encodeURIComponent(title);
+        const searchYear = year ? `&y=${new Date(year).getFullYear()}` : '';
+        const searchResponse = await fetch(
+          `https://www.omdbapi.com/?t=${searchTitle}${searchYear}&apikey=${apiKey}`
+        );
+        
+        if (searchResponse.ok) {
+          const searchData = await searchResponse.json();
+          if (searchData.Response === 'True' && searchData.Website && searchData.Website.includes('youtube.com')) {
+            const videoId = searchData.Website.split('v=')[1];
+            if (videoId) {
+              return `https://www.youtube.com/embed/${videoId}`;
+            }
+          }
+        }
+      }
+
+      return null;
+    } catch (error) {
+      console.error('Error fetching from OMDb:', error);
+      return null;
+    }
+  };
+
+  // Fetch movie videos with fallback to OMDb
+  const fetchMovieVideos = async (movieData) => {
+    const { id, imdb_id, title, release_date } = movieData;
+    
+    // 1. First try TMDB
     try {
       const apiKey = import.meta.env.VITE_TMDB_API_KEY;
       const response = await fetch(
-        `https://api.themoviedb.org/3/movie/${movieId}/videos?api_key=${apiKey}`
+        `https://api.themoviedb.org/3/movie/${id}/videos?api_key=${apiKey}`
       );
       
-      if (!response.ok) {
-        throw new Error('Failed to fetch videos');
-      }
-      
-      const data = await response.json();
-      // Find the first official trailer
-      const trailer = data.results.find(
-        (video) => video.type === 'Trailer' && video.official
-      );
-      
-      if (trailer) {
-        setTrailerUrl(`https://www.youtube.com/embed/${trailer.key}`);
+      if (response.ok) {
+        const data = await response.json();
+        console.log('TMDB Videos:', data.results);
+        
+        // Try to find the best possible trailer
+        let trailer = data.results?.find(
+          (video) => video.type === 'Trailer' && video.official && video.site === 'YouTube'
+        ) || data.results?.find(
+          (video) => video.type === 'Trailer' && video.site === 'YouTube'
+        ) || data.results?.[0];
+        
+        if (trailer?.key) {
+          console.log('Using TMDB trailer:', trailer);
+          return `https://www.youtube.com/embed/${trailer.key}`;
+        }
       }
     } catch (error) {
-      console.error('Error fetching movie videos:', error);
+      console.error('Error fetching TMDB videos:', error);
     }
+    
+    // 2. If no TMDB trailer, try OMDb
+    console.log('No TMDB trailer found, trying OMDb...');
+    try {
+      const omdbTrailer = await fetchOMDbTrailer(imdb_id, title, release_date);
+      if (omdbTrailer) {
+        console.log('Using OMDb trailer/poster:', omdbTrailer);
+        return omdbTrailer;
+      }
+    } catch (error) {
+      console.error('Error fetching OMDb trailer:', error);
+    }
+    
+    console.log('No trailer found from any source');
+    return null;
   };
 
   useEffect(() => {
@@ -44,7 +123,7 @@ const MovieDetail = () => {
         
         // Fetch movie details from TMDB API
         const apiKey = import.meta.env.VITE_TMDB_API_KEY;
-        const movieUrl = `https://api.themoviedb.org/3/movie/${id}?api_key=${apiKey}&append_to_response=credits,release_dates,watch/providers`;
+        const movieUrl = `https://api.themoviedb.org/3/movie/${id}?api_key=${apiKey}&append_to_response=credits,release_dates,watch/providers,external_ids`;
         
         const response = await fetch(movieUrl);
         
@@ -106,6 +185,7 @@ const MovieDetail = () => {
           release_date: data.release_date,
           runtime: data.runtime,
           genres: data.genres || [],
+          imdb_id: data.imdb_id, // Include IMDb ID for OMDb fallback
           credits: {
             cast: data.credits?.cast?.slice(0, 5).map(actor => ({
               id: actor.id,
@@ -124,8 +204,17 @@ const MovieDetail = () => {
         setMovie(formattedMovie);
         setError(null);
         
-        // Fetch movie videos after setting the movie data
-        await fetchMovieVideos(data.id);
+        // Fetch movie videos with fallback to OMDb
+        const trailerUrl = await fetchMovieVideos({
+          id: data.id,
+          imdb_id: data.imdb_id,
+          title: data.title,
+          release_date: data.release_date
+        });
+        
+        if (trailerUrl) {
+          setTrailerUrl(trailerUrl);
+        }
       } catch (error) {
         console.error('Error fetching movie:', error);
         setError('Failed to load movie details');
@@ -168,9 +257,9 @@ const MovieDetail = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-900 text-white">
+    <div className="min-h-screen bg-gray-900 text-white pt-16">
       {/* Backdrop and Header */}
-      <div className="relative pt-16 pb-8 w-full bg-gray-800">
+      <div className="relative pt-24 pb-8 w-full bg-gray-800 -mt-16">
         <div className="absolute inset-0 overflow-hidden">
           <div className="absolute inset-0 bg-gradient-to-b from-gray-900 to-gray-800">
             {movie.backdrop_path && (
@@ -189,10 +278,9 @@ const MovieDetail = () => {
         </div>
         
         {/* Movie Header */}
-      <div className="container mx-auto px-4 relative z-10">
-
-          <div className="flex items-end gap-6">
-            <div className="w-32 h-48 md:w-40 md:h-60 lg:w-48 lg:h-72 flex-shrink-0 rounded-lg overflow-hidden shadow-2xl transform -translate-y-12 border-2 border-white/10 bg-gray-800">
+        <div className="container mx-auto px-4 relative z-10">
+          <div className="flex items-end gap-6 pt-8">
+            <div className="w-32 h-48 md:w-40 md:h-60 lg:w-48 lg:h-72 flex-shrink-0 rounded-lg overflow-hidden shadow-2xl border-2 border-white/10 bg-gray-800">
               {movie.poster_path ? (
                 <img
                   src={`https://image.tmdb.org/t/p/w500${movie.poster_path}`}
@@ -480,9 +568,9 @@ const MovieDetail = () => {
   );
 
   return (
-    <div className="min-h-screen bg-gray-900 text-white">
+    <div className="min-h-screen bg-gray-900 text-white pt-16">
       {/* Backdrop and Header */}
-      <div className="relative pt-16 pb-8 w-full bg-gray-800">
+      <div className="relative pb-8 w-full bg-gray-800 -mt-16">
         <div className="absolute inset-0 overflow-hidden">
           <div className="absolute inset-0 bg-gradient-to-b from-gray-900 to-gray-800">
             {movie.backdrop_path && (

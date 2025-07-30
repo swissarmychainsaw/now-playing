@@ -1,8 +1,8 @@
-import { useUser } from '../../context/UserContext';
+import { useAuth } from '../../context/AuthContext';
 import { FaGoogle, FaSignOutAlt } from 'react-icons/fa';
 
 export const AuthButton = () => {
-  const { user, signInWithGoogle, signOut } = useUser();
+  const { user, signInWithGoogle, signOut } = useAuth();
 
   if (user) {
     return (

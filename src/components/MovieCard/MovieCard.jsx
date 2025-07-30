@@ -1,275 +1,239 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FaStar } from 'react-icons/fa';
-import { getOMDbPoster } from '../../utils/imageFallback';
-import { useUser } from '../../context/UserContext';
+import { FaStar, FaRegStar, FaHeart, FaRegHeart } from 'react-icons/fa';
+import { useRatings } from '../../context/RatingsContext';
+import { useMovieRating } from '../../hooks/useMovieRating';
 import Rating from '../Rating/Rating';
 
-const MovieCard = ({ movie, onRate, showRating = false }) => {
+/**
+ * MovieCard Component
+ * 
+ * Displays a movie poster with hover effects, rating functionality, and navigation to the movie detail page.
+ * 
+ * @component
+ * @param {Object} props - Component props
+ * @param {Object} props.movie - The movie object containing movie details
+ * @param {boolean} [props.showRating=true] - Whether to show the rating stars
+ * @param {boolean} [props.showTitle=true] - Whether to show the movie title
+ * @param {boolean} [props.showYear=true] - Whether to show the release year
+ * @param {string} [props.size='default'] - Size variant: 'default', 'small', or 'large'
+ * @returns {JSX.Element} Rendered MovieCard component
+ */
+
+const MovieCard = ({ 
+  movie, 
+  showRating = true, 
+  showTitle = true, 
+  showYear = true,
+  size = 'default' 
+}) => {
   const navigate = useNavigate();
-  const { user } = useUser();
-  const [imgSrc, setImgSrc] = useState('');
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(false);
+  const { getMovieRating } = useRatings();
+  const { toggleLike, isRating } = useMovieRating();
   
-  // Handle click on movie card
-  const handleClick = useCallback(() => {
-    if (onRate) {
-      return; // Don't navigate if we're in rating mode
-    }
-    navigate(`/movie/${movie.id}`);
-  }, [onRate, movie.id, navigate]);
-
-  // Handle movie rating
-  const handleRate = useCallback(async (movieId, rating) => {
-    if (onRate) {
-      await onRate(movieId, rating);
-    }
-  }, [onRate]);
-
-  const loadImage = useCallback(() => {
-    // Skip if no movie
-    if (!movie) {
-      setImgSrc('/placeholder-movie.png');
-      setLoading(false);
-      return () => {}; // Return empty cleanup function
-    }
+  const [isHovered, setIsHovered] = useState(false);
+  const [imageLoaded, setImageLoaded] = useState(false);
+  
+  // Get the current rating for this movie
+  const currentRating = getMovieRating(movie.id)?.rating || 0;
+  
+  // Size variants
+  const sizeClasses = {
+    small: {
+      container: 'w-32',
+      title: 'text-sm',
+      year: 'text-xs',
+      rating: 'text-xs',
+    },
+    default: {
+      container: 'w-48',
+      title: 'text-base',
+      year: 'text-sm',
+      rating: 'text-sm',
+    },
+    large: {
+      container: 'w-64',
+      title: 'text-lg',
+      year: 'text-base',
+      rating: 'text-base',
+    },
+  };
+  
+  const sizeConfig = sizeClasses[size] || sizeClasses.default;
+  
+  /**
+   * Handles clicks on the movie card
+   * 
+   * Navigates to the movie detail page when the card is clicked, unless the click
+   * was on a rating star or a like button.
+   * 
+   * @param {Event} e - The click event
+   */
+  const handleCardClick = useCallback((e) => {
+    // Check if the click was on a rating star, like button, or their children
+    const interactiveElements = [
+      e.target.closest('.rating-stars, .rating-stars *'),
+      e.target.closest('.like-button, .like-button *'),
+    ];
     
-    // Always return a cleanup function
-    let isMounted = true;
-    let tmdbImg = null;
-    let omdbImg = null;
+    // Only navigate if the click wasn't on an interactive element
+    if (!interactiveElements.some(el => el)) {
+      navigate(`/movie/${movie.id}`);
+    }
+  }, [movie.id, navigate]);
 
-    const cleanup = () => {
-      isMounted = false;
-      if (tmdbImg) {
-        tmdbImg.onload = null;
-        tmdbImg.onerror = null;
-        tmdbImg = null;
-      }
-      if (omdbImg) {
-        omdbImg.onload = null;
-        omdbImg.onerror = null;
-        omdbImg = null;
-      }
-    };
+  // Handle like button click
+  const handleLikeClick = (e) => {
+    e.stopPropagation();
+    toggleLike(movie.id, {
+      id: movie.id,
+      title: movie.title,
+      poster_path: movie.poster_path,
+      release_date: movie.release_date,
+      overview: movie.overview,
+      vote_average: movie.vote_average,
+    }, currentRating);
+  };
 
-    const loadImageAsync = async () => {
-      try {
-        // If no poster path, try to get from OMDb or use placeholder
-        if (!movie.poster_path) {
-          if (!movie.title) {
-            throw new Error('No movie title available for OMDb lookup');
-          }
-          
-          const omdbUrl = await getOMDbPoster(movie.title, movie.release_date?.substring(0, 4));
-          
-          if (omdbUrl && isMounted) {
-            omdbImg = new Image();
-            omdbImg.onload = () => {
-              if (isMounted) {
-                setImgSrc(omdbUrl);
-                setLoading(false);
-              }
-            };
-            omdbImg.onerror = () => {
-              if (isMounted) {
-                setImgSrc('/placeholder-movie.png');
-                setLoading(false);
-                setError(true);
-              }
-            };
-            omdbImg.src = omdbUrl;
-          } else if (isMounted) {
-            setImgSrc('/placeholder-movie.png');
-            setLoading(false);
-          }
-          return;
-        }
+  // Get the poster URL with fallback
+  const getPosterUrl = () => {
+    if (movie.poster_path) {
+      return `https://image.tmdb.org/t/p/w500${movie.poster_path}`;
+    }
+    return '/placeholder-movie.png';
+  };
 
-        // Try TMDB first if we have a poster path
-        const tmdbUrl = `https://image.tmdb.org/t/p/w500${movie.poster_path}`;
-        
-        tmdbImg = new Image();
-        
-        tmdbImg.onload = () => {
-          if (isMounted) {
-            setImgSrc(tmdbUrl);
-            setLoading(false);
-          }
-        };
-        
-        tmdbImg.onerror = async () => {
-          if (!isMounted) return;
-          
-          try {
-            // Fallback to OMDb if TMDB fails
-            if (!movie.title) throw new Error('No movie title for OMDb fallback');
-            
-            const omdbUrl = await getOMDbPoster(movie.title, movie.release_date?.substring(0, 4));
-            
-            if (omdbUrl && isMounted) {
-              omdbImg = new Image();
-              omdbImg.onload = () => {
-                if (isMounted) {
-                  setImgSrc(omdbUrl);
-                  setLoading(false);
-                }
-              };
-              omdbImg.onerror = () => {
-                if (isMounted) {
-                  setImgSrc('/placeholder-movie.png');
-                  setLoading(false);
-                  setError(true);
-                }
-              };
-              omdbImg.src = omdbUrl;
-            } else {
-              throw new Error('No OMDb URL available');
-            }
-          } catch (err) {
-            if (isMounted) {
-              setImgSrc('/placeholder-movie.png');
-              setLoading(false);
-              setError(true);
-            }
-          }
-        };
-        
-        tmdbImg.src = tmdbUrl;
+  // Get the release year
+  const getReleaseYear = () => {
+    if (movie.release_date) {
+      return new Date(movie.release_date).getFullYear();
+    }
+    return null;
+  };
 
-      } catch (error) {
-        console.error('Error loading image:', error);
-        if (isMounted) {
-          setImgSrc('/placeholder-movie.png');
-          setLoading(false);
-          setError(true);
-        }
-      }
-    };
-
-    loadImageAsync();
-    return cleanup;
-  }, [movie.poster_path, movie.title, movie.release_date]);
-
-  // Load image when component mounts or when the movie changes
-  useEffect(() => {
-    // Reset state when movie changes
-    setImgSrc('');
-    setLoading(true);
-    setError(false);
-    
-    // Load the new image
-    const cleanup = loadImage();
-    
-    // Cleanup function to cancel any pending image loads
-    return () => {
-      if (cleanup && typeof cleanup === 'function') {
-        cleanup();
-      }
-    };
-  }, [movie.id, loadImage]);
   return (
     <div 
-      onClick={handleClick}
-      className="group cursor-pointer transition-all duration-300 hover:transform hover:scale-105"
+      className={`group relative cursor-pointer transition-all duration-200 hover:scale-102 hover:shadow-lg rounded-lg overflow-hidden bg-white ${sizeConfig.container}`}
+      onClick={handleCardClick}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+      aria-label={`${movie.title}${getReleaseYear() ? ` (${getReleaseYear()})` : ''}`}
     >
-      <div className="relative overflow-hidden rounded-lg aspect-[2/3] bg-gray-100">
-        {loading ? (
-          <div className="w-full h-full bg-gray-200 animate-pulse"></div>
-        ) : (
-          <img
-            src={imgSrc}
-            alt={movie.title}
-            className={`w-full h-full object-cover transition-transform duration-500 group-hover:scale-110 ${
-              error ? 'opacity-50' : ''
-            }`}
-            loading="lazy"
-            onError={() => {
-              setError(true);
-              setImgSrc('/placeholder-movie.png');
-            }}
-          />
-        )}
-        
-        {/* Oscar Winner Badge */}
-        {movie.is_oscar_winner && (
-          <div className="absolute top-2 left-2 bg-gradient-to-r from-amber-400 to-amber-600 text-black text-[10px] font-bold px-2 py-1 rounded-full flex items-center z-10 shadow-lg">
-            🏆 Oscar Winner
+      {/* Movie Poster */}
+      <div className="aspect-[2/3] bg-gray-100 overflow-hidden relative">
+        {!imageLoaded && (
+          <div className="absolute inset-0 flex items-center justify-center bg-gray-200">
+            <div className="w-8 h-8 border-4 border-gray-300 border-t-primary rounded-full animate-spin"></div>
           </div>
         )}
         
-        {/* Rating Badge */}
-        <div className="absolute top-2 right-2 bg-black/80 text-white text-xs font-bold px-2 py-1 rounded-full flex items-center backdrop-blur-sm">
-          <FaStar className="text-yellow-400 mr-1" />
-          <span>{movie.vote_average ? movie.vote_average.toFixed(1) : 'N/A'}</span>
-          {movie.vote_count > 0 && (
-            <span className="ml-1 text-gray-300 text-[10px] font-normal">
-              ({movie.vote_count.toLocaleString()})
-            </span>
+        <img
+          src={getPosterUrl()}
+          alt={movie.title || 'Movie poster'}
+          className={`w-full h-full object-cover transition-opacity duration-200 ${
+            imageLoaded ? 'opacity-100' : 'opacity-0'
+          }`}
+          onLoad={() => setImageLoaded(true)}
+          onError={(e) => {
+            e.target.src = '/placeholder-movie.png';
+            setImageLoaded(true);
+          }}
+          loading="lazy"
+        />
+        
+        {/* Like Button */}
+        <button
+          className={`absolute top-2 right-2 p-2 bg-black/70 rounded-full text-white transition-opacity ${
+            isHovered || currentRating >= 4 ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+          } hover:bg-primary z-10`}
+          onClick={handleLikeClick}
+          disabled={isRating}
+          aria-label={currentRating >= 4 ? 'Remove like' : 'Like this movie'}
+        >
+          {currentRating >= 4 ? (
+            <FaHeart className="text-red-500" />
+          ) : (
+            <FaRegHeart className="text-white" />
           )}
-        </div>
+        </button>
         
         {/* Hover Overlay */}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-4">
-          <div className="flex items-center mb-2">
-            <div className="bg-yellow-500 text-black text-xs font-bold px-2 py-0.5 rounded mr-2">
-              {movie.vote_average ? movie.vote_average.toFixed(1) : 'N/A'}
-            </div>
-            <span className="text-yellow-400 text-xs">
-              {movie.vote_count ? `(${movie.vote_count.toLocaleString()})` : ''}
-            </span>
-          </div>
-          <h3 className="text-white font-bold text-lg mb-1 line-clamp-2">
-            {movie.title}
-          </h3>
-          {movie.release_date && (
-            <p className="text-gray-300 text-sm mb-2">
-              {new Date(movie.release_date).getFullYear()}
-              {movie.original_language && movie.original_language !== 'en' && (
-                <span className="ml-2 px-1.5 py-0.5 bg-gray-700 rounded text-xs">
-                  {movie.original_language.toUpperCase()}
-                </span>
-              )}
-            </p>
-          )}
-          <p className="text-gray-300 text-sm line-clamp-3">
-            {movie.overview || 'No overview available.'}
-          </p>
-          {movie.genre_names && movie.genre_names.length > 0 && (
-            <div className="mt-2 flex flex-wrap gap-1">
-              {movie.genre_names.slice(0, 3).map((genre, index) => (
-                <span key={index} className="text-xs px-2 py-0.5 bg-gray-700 rounded-full">
-                  {genre}
-                </span>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-      
-      <div className="mt-2">
-        <h3 className="font-semibold text-gray-900 line-clamp-1">{movie.title}</h3>
-        <div className="flex items-center justify-between mt-1">
-          <div className="flex items-center justify-between w-full">
-            <p className="text-sm text-gray-600">
-              {movie.year || (movie.release_date ? new Date(movie.release_date).getFullYear() : 'N/A')}
-              {movie.is_oscar_winner && (
-                <span className="ml-1 text-amber-600" title="Oscar Winner">🏆</span>
-              )}
-            </p>
+        <div 
+          className={`absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent flex flex-col justify-end p-4 transition-opacity ${
+            isHovered ? 'opacity-100' : 'opacity-0'
+          }`}
+        >
+          <div className="mt-auto">
             {showRating && (
-              <div className="flex items-center">
+              <div className="mb-3">
                 <Rating 
                   movieId={movie.id}
-                  initialRating={movie.user_rating || 0}
-                  onRate={handleRate}
-                  size="xs"
+                  movieData={{
+                    id: movie.id,
+                    title: movie.title,
+                    poster_path: movie.poster_path,
+                    release_date: movie.release_date,
+                    overview: movie.overview,
+                    vote_average: movie.vote_average,
+                  }}
+                  size={size === 'small' ? 'sm' : 'md'}
+                  showCount={true}
                 />
               </div>
             )}
+            
+            {movie.vote_average > 0 && (
+              <div className="flex items-center mb-2">
+                <FaStar className="text-yellow-400 mr-1" />
+                <span className="text-white text-sm font-medium">
+                  {movie.vote_average.toFixed(1)}
+                  {movie.vote_count > 0 && (
+                    <span className="text-gray-300 ml-1">
+                      ({movie.vote_count.toLocaleString()})
+                    </span>
+                  )}
+                </span>
+              </div>
+            )}
+            
+            {movie.overview && (
+              <p className="text-gray-200 text-sm line-clamp-3 mb-2">
+                {movie.overview}
+              </p>
+            )}
           </div>
         </div>
+      </div>
+      
+      {/* Movie Info (visible by default) */}
+      <div className="p-3">
+        {showTitle && (
+          <h3 className={`font-medium text-gray-900 line-clamp-1 ${sizeConfig.title}`}>
+            {movie.title}
+          </h3>
+        )}
+        
+        {(showYear || movie.vote_average > 0) && (
+          <div className="flex items-center justify-between mt-1">
+            {showYear && getReleaseYear() && (
+              <p className={`text-gray-500 ${sizeConfig.year}`}>
+                {getReleaseYear()}
+                {movie.is_oscar_winner && (
+                  <span className="ml-1.5 text-amber-500" title="Oscar Winner">🏆</span>
+                )}
+              </p>
+            )}
+            
+            {showRating && currentRating > 0 && (
+              <div className="flex items-center">
+                <FaStar className="text-yellow-400 mr-1 text-sm" />
+                <span className={`text-gray-700 ${sizeConfig.rating}`}>
+                  {currentRating.toFixed(1)}/5
+                </span>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

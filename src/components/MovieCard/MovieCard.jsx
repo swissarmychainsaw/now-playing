@@ -1,36 +1,35 @@
-import { useState, useEffect, useContext, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FaStar } from 'react-icons/fa';
 import { getOMDbPoster } from '../../utils/imageFallback';
 import { useUser } from '../../context/UserContext';
 import Rating from '../Rating/Rating';
 
-const MovieCard = ({ movie, onClick, showRating = false }) => {
+const MovieCard = ({ movie, onRate, showRating = false }) => {
   const navigate = useNavigate();
-  
-  const handleClick = () => {
-    if (onClick) {
-      onClick();
-    } else {
-      navigate(`/movie/${movie.id}`);
-    }
-  };
-
+  const { user } = useUser();
   const [imgSrc, setImgSrc] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
-  const { rateMovie } = useUser();
   
-  // Handle rating a movie
-  const handleRate = (rating) => {
-    if (movie?.id) {
-      rateMovie(movie.id, rating);
+  // Handle click on movie card
+  const handleClick = useCallback(() => {
+    if (onRate) {
+      return; // Don't navigate if we're in rating mode
     }
-  };
+    navigate(`/movie/${movie.id}`);
+  }, [onRate, movie.id, navigate]);
+
+  // Handle movie rating
+  const handleRate = useCallback(async (movieId, rating) => {
+    if (onRate) {
+      await onRate(movieId, rating);
+    }
+  }, [onRate]);
 
   const loadImage = useCallback(() => {
-    // Skip if no movie or poster path
-    if (!movie || !movie.poster_path) {
+    // Skip if no movie
+    if (!movie) {
       setImgSrc('/placeholder-movie.png');
       setLoading(false);
       return () => {}; // Return empty cleanup function
@@ -57,25 +56,56 @@ const MovieCard = ({ movie, onClick, showRating = false }) => {
 
     const loadImageAsync = async () => {
       try {
+        // If no poster path, try to get from OMDb or use placeholder
         if (!movie.poster_path) {
-          if (isMounted) {
+          if (!movie.title) {
+            throw new Error('No movie title available for OMDb lookup');
+          }
+          
+          const omdbUrl = await getOMDbPoster(movie.title, movie.release_date?.substring(0, 4));
+          
+          if (omdbUrl && isMounted) {
+            omdbImg = new Image();
+            omdbImg.onload = () => {
+              if (isMounted) {
+                setImgSrc(omdbUrl);
+                setLoading(false);
+              }
+            };
+            omdbImg.onerror = () => {
+              if (isMounted) {
+                setImgSrc('/placeholder-movie.png');
+                setLoading(false);
+                setError(true);
+              }
+            };
+            omdbImg.src = omdbUrl;
+          } else if (isMounted) {
             setImgSrc('/placeholder-movie.png');
             setLoading(false);
           }
           return;
         }
 
-        const handleTMDBLoad = () => {
+        // Try TMDB first if we have a poster path
+        const tmdbUrl = `https://image.tmdb.org/t/p/w500${movie.poster_path}`;
+        
+        tmdbImg = new Image();
+        
+        tmdbImg.onload = () => {
           if (isMounted) {
-            setImgSrc(`https://image.tmdb.org/t/p/w500${movie.poster_path}`);
+            setImgSrc(tmdbUrl);
             setLoading(false);
           }
         };
-
-        const handleTMDBError = async () => {
+        
+        tmdbImg.onerror = async () => {
           if (!isMounted) return;
           
           try {
+            // Fallback to OMDb if TMDB fails
+            if (!movie.title) throw new Error('No movie title for OMDb fallback');
+            
             const omdbUrl = await getOMDbPoster(movie.title, movie.release_date?.substring(0, 4));
             
             if (omdbUrl && isMounted) {
@@ -94,10 +124,8 @@ const MovieCard = ({ movie, onClick, showRating = false }) => {
                 }
               };
               omdbImg.src = omdbUrl;
-            } else if (isMounted) {
-              setImgSrc('/placeholder-movie.png');
-              setLoading(false);
-              setError(true);
+            } else {
+              throw new Error('No OMDb URL available');
             }
           } catch (err) {
             if (isMounted) {
@@ -107,14 +135,11 @@ const MovieCard = ({ movie, onClick, showRating = false }) => {
             }
           }
         };
-
-        // Try TMDB first
-        tmdbImg = new Image();
-        tmdbImg.onload = handleTMDBLoad;
-        tmdbImg.onerror = handleTMDBError;
-        tmdbImg.src = `https://image.tmdb.org/t/p/w500${movie.poster_path}`;
+        
+        tmdbImg.src = tmdbUrl;
 
       } catch (error) {
+        console.error('Error loading image:', error);
         if (isMounted) {
           setImgSrc('/placeholder-movie.png');
           setLoading(false);
@@ -169,7 +194,7 @@ const MovieCard = ({ movie, onClick, showRating = false }) => {
         
         {/* Oscar Winner Badge */}
         {movie.is_oscar_winner && (
-          <div className="absolute top-2 left-2 bg-gradient-to-r from-amber-400 to-amber-600 text-black text-[10px] font-bold px-2 py-1 rounded-full flex items-center backdrop-blur-sm z-10 shadow-lg">
+          <div className="absolute top-2 left-2 bg-gradient-to-r from-amber-400 to-amber-600 text-black text-[10px] font-bold px-2 py-1 rounded-full flex items-center z-10 shadow-lg">
             🏆 Oscar Winner
           </div>
         )}
@@ -226,21 +251,24 @@ const MovieCard = ({ movie, onClick, showRating = false }) => {
       <div className="mt-2">
         <h3 className="font-semibold text-gray-900 line-clamp-1">{movie.title}</h3>
         <div className="flex items-center justify-between mt-1">
-          <p className="text-sm text-gray-600">
-            {movie.release_date ? new Date(movie.release_date).getFullYear() : 'N/A'}
-          </p>
-          {showRating && (
-            <div className="flex items-center">
-              <span className="text-xs text-gray-500 mr-1">Rate:</span>
-              <Rating 
-                movieId={movie?.id}
-                initialRating={movie?.user_rating || 0}
-                onRate={handleRate}
-                size="xs"
-                className="ml-1"
-              />
-            </div>
-          )}
+          <div className="flex items-center justify-between w-full">
+            <p className="text-sm text-gray-600">
+              {movie.year || (movie.release_date ? new Date(movie.release_date).getFullYear() : 'N/A')}
+              {movie.is_oscar_winner && (
+                <span className="ml-1 text-amber-600" title="Oscar Winner">🏆</span>
+              )}
+            </p>
+            {showRating && (
+              <div className="flex items-center">
+                <Rating 
+                  movieId={movie.id}
+                  initialRating={movie.user_rating || 0}
+                  onRate={handleRate}
+                  size="xs"
+                />
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>

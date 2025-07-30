@@ -5,84 +5,131 @@ const MovieDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const [movie, setMovie] = useState(null);
+  const [trailerUrl, setTrailerUrl] = useState(null);
+  const [showTrailer, setShowTrailer] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [userRating, setUserRating] = useState(null);
 
-  // Sample movie data - in a real app, this would come from an API
-  const sampleMovies = {
-    '1': {
-      id: '1',
-      title: 'The Shawshank Redemption',
-      overview: 'Two imprisoned men bond over a number of years, finding solace and eventual redemption through acts of common decency.',
-      poster_path: '/q6y0Go1tsGEsmtFryDOJo3dEmqu.jpg',
-      backdrop_path: '/kXfqcdQKsToO0OUXHcrrNCHDBzO.jpg',
-      trailer_url: 'https://www.youtube.com/watch?v=6hB3S9bIaco',
-      vote_average: 8.7,
-      release_date: '1994-09-23',
-      runtime: 142,
-      certification: 'R',
-      genres: [
-        { id: 1, name: 'Drama' },
-        { id: 2, name: 'Crime' }
-      ],
-      credits: {
-        cast: [
-          { id: 1, name: 'Tim Robbins', character: 'Andy Dufresne', profile_path: '/hsCu1JUzQQ4pl7FxNzPGOMtCKhI.jpg' },
-          { id: 2, name: 'Morgan Freeman', character: 'Ellis Boyd "Red" Redding', profile_path: '/oGJQhOpT8S1M56tvSsbEBePV5O1.jpg' },
-          { id: 3, name: 'Bob Gunton', character: 'Warden Norton', profile_path: '/yWt2r2QeBQHt0QrXhA5Dx5X7JNB.jpg' },
-          { id: 4, name: 'William Sadler', character: 'Heywood', profile_path: '/bSitU6tYzYlJ3R0JkudLh4v81TV.jpg' },
-          { id: 5, name: 'Clancy Brown', character: 'Captain Hadley', profile_path: '/1xWuTtSbjV9x1O1d1QCLYt0KB1T.jpg' },
-        ]
-      },
-      providers: [
-        {
-          provider_name: 'Netflix',
-          logo_path: '/t2yyOv40HZeVlLjYsCsPHnWLk4W.jpg'
-        }
-      ]
-    },
-    '2': {
-      id: '2',
-      title: 'The Godfather',
-      overview: 'The aging patriarch of an organized crime dynasty transfers control of his clandestine empire to his reluctant son.',
-      poster_path: '/3bhkrj58Vtu7enYsRolD1fZdja1.jpg',
-      backdrop_path: '/rSPw7tgCH9c6NqICZef4kZjFOQ5.jpg',
-      trailer_url: 'https://www.youtube.com/watch?v=sY1S34973zA',
-      vote_average: 8.7,
-      release_date: '1972-03-24',
-      runtime: 175,
-      certification: 'R',
-      genres: [
-        { id: 1, name: 'Drama' },
-        { id: 2, name: 'Crime' }
-      ],
-      credits: {
-        cast: [
-          { id: 1, name: 'Marlon Brando', character: 'Don Vito Corleone', profile_path: '/fuTEPMsBtV1lE9GR9F0W2SCnxbl.jpg' },
-          { id: 2, name: 'Al Pacino', character: 'Michael Corleone', profile_path: '/fMDFeVf0pjopTJbyRSLFwNDm8Wr.jpg' },
-          { id: 3, name: 'James Caan', character: 'Sonny Corleone', profile_path: '/vRlHNnKORUR6ALw8n2LUD8tXfDw.jpg' },
-          { id: 4, name: 'Robert Duvall', character: 'Tom Hagen', profile_path: '/1g0zYzggj6kl5B8kmH8aYf1QoVn.jpg' },
-          { id: 5, name: 'Diane Keaton', character: 'Kay Adams', profile_path: '/qOuvuHx9kQBOHOaJ4a4TQ6FRKQr.jpg' },
-        ]
-      },
-      providers: [
-        {
-          provider_name: 'Paramount+',
-          logo_path: '/gJjVU96FCP35acEa2NGcOX28ilm.jpg'
-        }
-      ]
+  // Fetch movie videos (trailers)
+  const fetchMovieVideos = async (movieId) => {
+    try {
+      const apiKey = import.meta.env.VITE_TMDB_API_KEY;
+      const response = await fetch(
+        `https://api.themoviedb.org/3/movie/${movieId}/videos?api_key=${apiKey}`
+      );
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch videos');
+      }
+      
+      const data = await response.json();
+      // Find the first official trailer
+      const trailer = data.results.find(
+        (video) => video.type === 'Trailer' && video.official
+      );
+      
+      if (trailer) {
+        setTrailerUrl(`https://www.youtube.com/embed/${trailer.key}`);
+      }
+    } catch (error) {
+      console.error('Error fetching movie videos:', error);
     }
   };
 
   useEffect(() => {
     const fetchMovie = async () => {
-      setLoading(true);
       try {
-        // Simulate API call
-        await new Promise(resolve => setTimeout(resolve, 500));
-        setMovie(sampleMovies[id]);
+        setLoading(true);
+        
+        // Fetch movie details from TMDB API
+        const apiKey = import.meta.env.VITE_TMDB_API_KEY;
+        const movieUrl = `https://api.themoviedb.org/3/movie/${id}?api_key=${apiKey}&append_to_response=credits,release_dates,watch/providers`;
+        
+        const response = await fetch(movieUrl);
+        
+        if (!response.ok) {
+          throw new Error('Movie not found');
+        }
+        
+        const data = await response.json();
+        
+        // Log the watch providers data for debugging
+        console.log('Watch providers data:', data['watch/providers']);
+        
+        // Helper function to get providers by region
+        const getProvidersForRegion = (region) => {
+          const regionData = data['watch/providers']?.results?.[region];
+          if (!regionData) return [];
+          
+          return [
+            ...(regionData.flatrate || []).map(p => ({...p, type: 'stream'})),
+            ...(regionData.buy || []).map(p => ({...p, type: 'buy'})),
+            ...(regionData.rent || []).map(p => ({...p, type: 'rent'})),
+          ];
+        };
+        
+        // Try to get providers for US first, then check other regions
+        let providers = getProvidersForRegion('US');
+        let regionName = 'US';
+        
+        // If no US providers, try other regions
+        if (providers.length === 0) {
+          const allRegions = data['watch/providers']?.results ? Object.keys(data['watch/providers'].results) : [];
+          
+          // Try to find a region with providers
+          for (const region of allRegions) {
+            const regionProviders = getProvidersForRegion(region);
+            if (regionProviders.length > 0) {
+              providers = regionProviders;
+              regionName = region;
+              break;
+            }
+          }
+        }
+        
+        // Add region info to providers
+        providers = providers.map(p => ({
+          ...p,
+          region: regionName,
+          display_priority: p.display_priority || 999
+        }));
+        
+        // Format the movie data to match our component's expectations
+        const formattedMovie = {
+          id: data.id.toString(),
+          title: data.title,
+          overview: data.overview,
+          poster_path: data.poster_path,
+          backdrop_path: data.backdrop_path,
+          vote_average: data.vote_average,
+          release_date: data.release_date,
+          runtime: data.runtime,
+          genres: data.genres || [],
+          credits: {
+            cast: data.credits?.cast?.slice(0, 5).map(actor => ({
+              id: actor.id,
+              name: actor.name,
+              character: actor.character,
+              profile_path: actor.profile_path
+            })) || []
+          },
+          providers: providers.sort((a, b) => {
+            // Sort by type first (stream > buy > rent), then by display_priority
+            const typeOrder = { stream: 0, buy: 1, rent: 2 };
+            return typeOrder[a.type] - typeOrder[b.type] || a.display_priority - b.display_priority;
+          })
+        };
+        
+        setMovie(formattedMovie);
+        setError(null);
+        
+        // Fetch movie videos after setting the movie data
+        await fetchMovieVideos(data.id);
       } catch (error) {
         console.error('Error fetching movie:', error);
+        setError('Failed to load movie details');
+        // Don't navigate to 404 here, let the component handle the error state
       } finally {
         setLoading(false);
       }
@@ -91,18 +138,25 @@ const MovieDetail = () => {
     fetchMovie();
   }, [id]);
 
+  // Toggle trailer visibility
+  const toggleTrailer = () => {
+    setShowTrailer(!showTrailer);
+  };
+
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-900">
+      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
       </div>
     );
   }
 
-  if (!movie) {
+  if (error || !movie) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-gray-900 p-4 text-white">
-        <h2 className="text-2xl font-bold mb-4">Movie not found</h2>
+      <div className="min-h-screen bg-gray-100 flex flex-col items-center justify-center p-4">
+        <h1 className="text-2xl font-bold text-gray-800 mb-4">
+          {error || 'Movie not found'}
+        </h1>
         <button
           onClick={() => navigate('/')}
           className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
@@ -135,7 +189,8 @@ const MovieDetail = () => {
         </div>
         
         {/* Movie Header */}
-        <div className="container mx-auto px-4 relative z-10">
+      <div className="container mx-auto px-4 relative z-10">
+
           <div className="flex items-end gap-6">
             <div className="w-32 h-48 md:w-40 md:h-60 lg:w-48 lg:h-72 flex-shrink-0 rounded-lg overflow-hidden shadow-2xl transform -translate-y-12 border-2 border-white/10 bg-gray-800">
               {movie.poster_path ? (
@@ -238,90 +293,10 @@ const MovieDetail = () => {
 
             {/* Right Column */}
             <div className="lg:w-1/3">
-              {/* Streaming Providers & Trailer */}
               <div className="space-y-4">
-                {/* Watch Trailer Button */}
-                {movie.trailer_url && (
-                  <div className="bg-gray-800/50 rounded-xl p-4 border border-gray-700/50">
-                    <h2 className="text-lg font-bold mb-3 text-white flex items-center">
-                      <span className="w-6 h-0.5 bg-red-500 mr-2"></span>
-                      Watch Trailer
-                    </h2>
-                    <a
-                      href={movie.trailer_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center justify-center gap-2 w-full px-3 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors text-sm"
-                    >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
-                      <span>Watch Trailer</span>
-                    </a>
-                  </div>
-                )}
-
-                {/* Streaming Providers */}
-                {movie.providers?.length > 0 && (
-                  <div className="bg-gray-800/50 rounded-xl p-4 border border-gray-700/50">
-                    <h2 className="text-lg font-bold mb-3 text-white flex items-center">
-                      <span className="w-6 h-0.5 bg-blue-500 mr-2"></span>
-                      Where to Watch
-                    </h2>
-                    <div className="space-y-2">
-                      {movie.providers.map((provider, index) => {
-                        // Create initials from provider name
-                        const getInitials = (name) => {
-                          return name
-                            .split(' ')
-                            .map(word => word[0])
-                            .join('')
-                            .toUpperCase()
-                            .substring(0, 3);
-                        };
-
-                        return (
-                          <div key={index} className="flex items-center gap-2 p-2 bg-gray-700/30 rounded-lg hover:bg-gray-700/50 transition-colors text-sm">
-                            <div className="relative w-8 h-8 flex-shrink-0">
-                              {provider.logo_path ? (
-                                <>
-                                  <img
-                                    src={`https://image.tmdb.org/t/p/w200${provider.logo_path}`}
-                                    alt={provider.provider_name}
-                                    className="w-full h-full object-contain p-1 bg-white rounded-md"
-                                    onError={(e) => {
-                                      // Hide the image and show the fallback if it fails to load
-                                      e.target.style.display = 'none';
-                                      const fallback = e.target.nextElementSibling;
-                                      if (fallback) fallback.style.display = 'flex';
-                                    }}
-                                  />
-                                  <div className="hidden absolute inset-0 items-center justify-center bg-gradient-to-br from-blue-600 to-blue-800 rounded">
-                                    <span className="text-[10px] font-bold text-white">
-                                      {getInitials(provider.provider_name)}
-                                    </span>
-                                  </div>
-                                </>
-                              ) : (
-                                <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-blue-600 to-blue-800 rounded">
-                                  <span className="text-[10px] font-bold text-white">
-                                    {getInitials(provider.provider_name)}
-                                  </span>
-                                </div>
-                              )}
-                            </div>
-                            <span className="font-medium">{provider.provider_name}</span>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-
-                {/* User Rating */}
+                {/* Rate this Movie */}
                 <div className="bg-gray-800/50 rounded-xl p-4 border border-gray-700/50">
-                  <h2 className="text-lg font-bold mb-2 text-white flex items-center">
+                  <h2 className="text-lg font-bold mb-3 text-white flex items-center">
                     <span className="w-6 h-0.5 bg-blue-500 mr-2"></span>
                     Rate this Movie
                   </h2>
@@ -351,11 +326,281 @@ const MovieDetail = () => {
                     )}
                   </div>
                 </div>
+
+                {/* Watch Trailer */}
+                {trailerUrl && (
+                  <div className="bg-gray-800/50 rounded-xl p-4 border border-gray-700/50">
+                    <h2 className="text-lg font-bold mb-3 text-white flex items-center">
+                      <span className="w-6 h-0.5 bg-red-500 mr-2"></span>
+                      Watch Trailer
+                    </h2>
+                    <button
+                      onClick={toggleTrailer}
+                      className="flex items-center justify-center gap-2 w-full px-3 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors text-sm"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      <span>Watch Trailer</span>
+                    </button>
+                    {showTrailer && trailerUrl && (
+                      <div className="mt-4 aspect-video w-full bg-black rounded-lg overflow-hidden">
+                        <iframe
+                          width="100%"
+                          height="100%"
+                          src={trailerUrl}
+                          title={`${movie.title} Trailer`}
+                          frameBorder="0"
+                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                          allowFullScreen
+                          className="w-full h-full"
+                        ></iframe>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Where to Watch */}
+                {movie.providers?.length > 0 && (
+                  <div className="bg-gray-800/50 rounded-xl p-4 border border-gray-700/50">
+                    <h2 className="text-lg font-bold mb-3 text-white flex items-center">
+                      <span className="w-6 h-0.5 bg-blue-500 mr-2"></span>
+                      Where to Watch
+                    </h2>
+                    <div className="space-y-2">
+                      {movie.providers.map((provider, index) => {
+                        const getInitials = (name) => {
+                          return name
+                            .split(' ')
+                            .map(word => word[0])
+                            .join('')
+                            .toUpperCase()
+                            .substring(0, 3);
+                        };
+
+                        // Create a mapping of provider IDs to their respective URLs
+                        const providerLinks = {
+                          8: 'https://www.netflix.com/title/', // Netflix
+                          9: 'https://www.primevideo.com/detail/', // Amazon Prime Video
+                          337: 'https://www.disneyplus.com/movies/', // Disney+
+                          15: 'https://www.hulu.com/movie/', // Hulu
+                          531: 'https://www.paramountplus.com/movies/', // Paramount+
+                          350: 'https://www.apple.com/tv/', // Apple TV+
+                          29: 'https://www.vudu.com/', // Vudu
+                          192: 'https://www.youtube.com/movies/', // YouTube
+                          2: 'https://tv.apple.com/movie/', // Apple TV
+                          3: 'https://play.google.com/store/movies/details/', // Google Play Movies
+                          358: 'https://www.max.com/' // Max
+                        };
+
+                        // Get the base URL for the provider
+                        const getProviderUrl = (providerId, providerName, movieTitle, region) => {
+                          const baseUrl = providerLinks[providerId];
+                          const tmdbWatchUrl = `https://www.themoviedb.org/movie/${id}/watch?locale=${region}`;
+                          
+                          // If we have a direct link for this provider, use it
+                          if (baseUrl) {
+                            // For Netflix, we need to use the TMDB watch page as we can't link directly
+                            if (providerId === 8) return tmdbWatchUrl;
+                            
+                            // For other providers, we can try to link directly
+                            return baseUrl;
+                          }
+                          
+                          // Fallback to TMDB watch page with the correct region
+                          return tmdbWatchUrl;
+                        };
+
+                        const providerUrl = getProviderUrl(
+                          provider.provider_id, 
+                          provider.provider_name, 
+                          movie.title,
+                          provider.region || 'US'
+                        );
+                        
+                        return (
+                          <a 
+                            key={index} 
+                            href={providerUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="block no-underline"
+                          >
+                            <div className="flex items-center gap-2 p-2 bg-gray-700/30 rounded-lg hover:bg-gray-700/50 transition-colors text-sm relative group">
+                              <div className="relative w-8 h-8 flex-shrink-0">
+                                {provider.logo_path ? (
+                                  <>
+                                    <img
+                                      src={`https://image.tmdb.org/t/p/w200${provider.logo_path}`}
+                                      alt={provider.provider_name}
+                                      className="w-full h-full object-contain p-1 bg-white rounded-md"
+                                      onError={(e) => {
+                                        e.target.style.display = 'none';
+                                        const fallback = e.target.nextElementSibling;
+                                        if (fallback) fallback.style.display = 'flex';
+                                      }}
+                                    />
+                                    <div className="hidden absolute inset-0 items-center justify-center bg-gradient-to-br from-blue-600 to-blue-800 rounded">
+                                      <span className="text-[10px] font-bold text-white">
+                                        {getInitials(provider.provider_name)}
+                                      </span>
+                                    </div>
+                                  </>
+                                ) : (
+                                  <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-blue-600 to-blue-800 rounded">
+                                    <span className="text-[10px] font-bold text-white">
+                                      {getInitials(provider.provider_name)}
+                                    </span>
+                                  </div>
+                                )}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <span className="font-medium text-white block truncate">{provider.provider_name}</span>
+                                {provider.region && provider.region !== 'US' && (
+                                  <span className="text-xs text-gray-400 block -mt-0.5">Available in {provider.region}</span>
+                                )}
+                              </div>
+                              <svg className="w-3 h-3 ml-2 flex-shrink-0 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                              </svg>
+                            </div>
+                          </a>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>
         </div>
       </div>
+    </div>
+  );
+
+  return (
+    <div className="min-h-screen bg-gray-900 text-white">
+      {/* Backdrop and Header */}
+      <div className="relative pt-16 pb-8 w-full bg-gray-800">
+        <div className="absolute inset-0 overflow-hidden">
+          <div className="absolute inset-0 bg-gradient-to-b from-gray-900 to-gray-800">
+            {movie.backdrop_path && (
+              <img
+                src={`https://image.tmdb.org/t/p/original${movie.backdrop_path}`}
+                alt={movie.title}
+                className="w-full h-full object-cover opacity-30"
+                onError={(e) => {
+                  e.target.style.display = 'none';
+                }}
+              />
+            )}
+          </div>
+          {/* Gradient Overlay */}
+          <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/50 to-black/90"></div>
+        </div>
+        
+        {/* Movie Header */}
+        <div className="container mx-auto px-4 relative z-10">
+          {trailerUrl && (
+            <div className="absolute -top-20 right-4 md:right-8">
+              <button
+                onClick={toggleTrailer}
+                className="flex items-center px-4 py-2 bg-red-600 text-white rounded-full hover:bg-red-700 transition-colors shadow-lg"
+              >
+                <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" />
+                </svg>
+                Watch Trailer
+              </button>
+            </div>
+          )}
+          
+          {/* Rest of the movie details */}
+          <div className="flex items-end gap-6">
+            <div className="w-32 h-48 md:w-40 md:h-60 lg:w-48 lg:h-72 flex-shrink-0 rounded-lg overflow-hidden shadow-2xl transform -translate-y-12 border-2 border-white/10 bg-gray-800">
+              {movie.poster_path ? (
+                <img
+                  src={`https://image.tmdb.org/t/p/w500${movie.poster_path}`}
+                  alt={`${movie.title} poster`}
+                  className="w-full h-full object-cover"
+                  onError={(e) => {
+                    e.target.src = '/placeholder-movie.png';
+                  }}
+                />
+              ) : (
+                <div className="w-full h-full bg-gray-700 flex items-center justify-center">
+                  <span className="text-gray-400">No poster</span>
+                </div>
+              )}
+            </div>
+            
+            <div className="flex-1">
+              <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold mb-2">{movie.title}</h1>
+              <div className="flex items-center flex-wrap gap-2 text-sm text-gray-300 mb-4">
+                <span>{new Date(movie.release_date).getFullYear()}</span>
+                {movie.runtime && <span>• {Math.floor(movie.runtime / 60)}h {movie.runtime % 60}m</span>}
+                {movie.certification && <span>• {movie.certification}</span>}
+                <span>• {movie.vote_average.toFixed(1)}/10</span>
+              </div>
+              
+              <div className="flex flex-wrap gap-2 mb-4">
+                {movie.genres.map(genre => (
+                  <span key={genre.id} className="px-2 py-1 bg-blue-600 text-white text-xs rounded-full">
+                    {genre.name}
+                  </span>
+                ))}
+              </div>
+              
+              <p className="text-gray-300 mb-6">{movie.overview}</p>
+              
+              <div className="flex items-center gap-4">
+                <button className="flex items-center justify-center w-12 h-12 rounded-full bg-blue-600 hover:bg-blue-700 text-white">
+                  <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" />
+                  </svg>
+                </button>
+                <button className="flex items-center justify-center w-12 h-12 rounded-full bg-gray-700 hover:bg-gray-600 text-white">
+                  <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M5 4a2 2 0 012-2h6a2 2 0 012 2v14l-5-2.5L5 18V4z" />
+                  </svg>
+                </button>
+                <button className="flex items-center justify-center w-12 h-12 rounded-full bg-gray-700 hover:bg-gray-600 text-white">
+                  <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+                    <path fillRule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clipRule="evenodd" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      {/* Trailer Modal */}
+      {showTrailer && trailerUrl && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4" onClick={toggleTrailer}>
+          <div className="relative w-full max-w-6xl" onClick={e => e.stopPropagation()}>
+            <button 
+              onClick={toggleTrailer}
+              className="absolute -top-10 right-0 text-white hover:text-gray-300"
+              aria-label="Close trailer"
+            >
+              <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+            <div className="aspect-w-16 aspect-h-9">
+              <iframe
+                className="w-full h-[70vh]"
+                src={`${trailerUrl}?autoplay=1&mute=1`}
+                title={`${movie.title} Trailer`}
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+              ></iframe>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

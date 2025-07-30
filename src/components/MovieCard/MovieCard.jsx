@@ -1,8 +1,11 @@
-import { Card, CardMedia, CardContent, Typography, Box } from '@mui/material';
-import { Star } from '@mui/icons-material';
+import { useState, useEffect, useContext, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { FaStar } from 'react-icons/fa';
+import { getOMDbPoster } from '../../utils/imageFallback';
+import { useUser } from '../../context/UserContext';
+import Rating from '../Rating/Rating';
 
-const MovieCard = ({ movie, onClick }) => {
+const MovieCard = ({ movie, onClick, showRating = false }) => {
   const navigate = useNavigate();
   
   const handleClick = () => {
@@ -13,45 +16,234 @@ const MovieCard = ({ movie, onClick }) => {
     }
   };
 
-  return (
-    <Card 
-      onClick={handleClick}
-      className="h-full flex flex-col cursor-pointer hover:shadow-lg transition-all duration-300"
-    >
-      <CardMedia
-        component="img"
-        height="300"
-        image={movie.poster_path 
-          ? `https://image.tmdb.org/t/p/w500${movie.poster_path}`
-          : '/placeholder-movie.png' // Add a placeholder image in your public folder
+  const [imgSrc, setImgSrc] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+  const { rateMovie } = useUser();
+  
+  // Handle rating a movie
+  const handleRate = (rating) => {
+    if (movie?.id) {
+      rateMovie(movie.id, rating);
+    }
+  };
+
+  const loadImage = useCallback(() => {
+    // Skip if no movie or poster path
+    if (!movie || !movie.poster_path) {
+      setImgSrc('/placeholder-movie.png');
+      setLoading(false);
+      return () => {}; // Return empty cleanup function
+    }
+    
+    // Always return a cleanup function
+    let isMounted = true;
+    let tmdbImg = null;
+    let omdbImg = null;
+
+    const cleanup = () => {
+      isMounted = false;
+      if (tmdbImg) {
+        tmdbImg.onload = null;
+        tmdbImg.onerror = null;
+        tmdbImg = null;
+      }
+      if (omdbImg) {
+        omdbImg.onload = null;
+        omdbImg.onerror = null;
+        omdbImg = null;
+      }
+    };
+
+    const loadImageAsync = async () => {
+      try {
+        if (!movie.poster_path) {
+          if (isMounted) {
+            setImgSrc('/placeholder-movie.png');
+            setLoading(false);
+          }
+          return;
         }
-        alt={movie.title}
-        className="object-cover h-64"
-      />
-      <CardContent className="flex-grow flex flex-col">
-        <Box className="flex justify-between items-start mb-2">
-          <Typography variant="h6" component="h2" className="font-bold line-clamp-2">
-            {movie.title}
-          </Typography>
-          <Box className="flex items-center bg-yellow-100 px-2 py-1 rounded">
-            <Star className="text-yellow-500 mr-1" fontSize="small" />
-            <span className="text-sm font-medium">
-              {movie.vote_average ? movie.vote_average.toFixed(1) : 'N/A'}
+
+        const handleTMDBLoad = () => {
+          if (isMounted) {
+            setImgSrc(`https://image.tmdb.org/t/p/w500${movie.poster_path}`);
+            setLoading(false);
+          }
+        };
+
+        const handleTMDBError = async () => {
+          if (!isMounted) return;
+          
+          try {
+            const omdbUrl = await getOMDbPoster(movie.title, movie.release_date?.substring(0, 4));
+            
+            if (omdbUrl && isMounted) {
+              omdbImg = new Image();
+              omdbImg.onload = () => {
+                if (isMounted) {
+                  setImgSrc(omdbUrl);
+                  setLoading(false);
+                }
+              };
+              omdbImg.onerror = () => {
+                if (isMounted) {
+                  setImgSrc('/placeholder-movie.png');
+                  setLoading(false);
+                  setError(true);
+                }
+              };
+              omdbImg.src = omdbUrl;
+            } else if (isMounted) {
+              setImgSrc('/placeholder-movie.png');
+              setLoading(false);
+              setError(true);
+            }
+          } catch (err) {
+            if (isMounted) {
+              setImgSrc('/placeholder-movie.png');
+              setLoading(false);
+              setError(true);
+            }
+          }
+        };
+
+        // Try TMDB first
+        tmdbImg = new Image();
+        tmdbImg.onload = handleTMDBLoad;
+        tmdbImg.onerror = handleTMDBError;
+        tmdbImg.src = `https://image.tmdb.org/t/p/w500${movie.poster_path}`;
+
+      } catch (error) {
+        if (isMounted) {
+          setImgSrc('/placeholder-movie.png');
+          setLoading(false);
+          setError(true);
+        }
+      }
+    };
+
+    loadImageAsync();
+    return cleanup;
+  }, [movie.poster_path, movie.title, movie.release_date]);
+
+  // Load image when component mounts or when the movie changes
+  useEffect(() => {
+    // Reset state when movie changes
+    setImgSrc('');
+    setLoading(true);
+    setError(false);
+    
+    // Load the new image
+    const cleanup = loadImage();
+    
+    // Cleanup function to cancel any pending image loads
+    return () => {
+      if (cleanup && typeof cleanup === 'function') {
+        cleanup();
+      }
+    };
+  }, [movie.id, loadImage]);
+  return (
+    <div 
+      onClick={handleClick}
+      className="group cursor-pointer transition-all duration-300 hover:transform hover:scale-105"
+    >
+      <div className="relative overflow-hidden rounded-lg aspect-[2/3] bg-gray-100">
+        {loading ? (
+          <div className="w-full h-full bg-gray-200 animate-pulse"></div>
+        ) : (
+          <img
+            src={imgSrc}
+            alt={movie.title}
+            className={`w-full h-full object-cover transition-transform duration-500 group-hover:scale-110 ${
+              error ? 'opacity-50' : ''
+            }`}
+            loading="lazy"
+            onError={() => {
+              setError(true);
+              setImgSrc('/placeholder-movie.png');
+            }}
+          />
+        )}
+        
+        {/* Oscar Winner Badge */}
+        {movie.is_oscar_winner && (
+          <div className="absolute top-2 left-2 bg-gradient-to-r from-amber-400 to-amber-600 text-black text-[10px] font-bold px-2 py-1 rounded-full flex items-center backdrop-blur-sm z-10 shadow-lg">
+            🏆 Oscar Winner
+          </div>
+        )}
+        
+        {/* Rating Badge */}
+        <div className="absolute top-2 right-2 bg-black/80 text-white text-xs font-bold px-2 py-1 rounded-full flex items-center backdrop-blur-sm">
+          <FaStar className="text-yellow-400 mr-1" />
+          <span>{movie.vote_average ? movie.vote_average.toFixed(1) : 'N/A'}</span>
+          {movie.vote_count > 0 && (
+            <span className="ml-1 text-gray-300 text-[10px] font-normal">
+              ({movie.vote_count.toLocaleString()})
             </span>
-          </Box>
-        </Box>
-        <Typography variant="body2" color="text.secondary" className="mb-2">
-          {movie.release_date ? new Date(movie.release_date).getFullYear() : 'N/A'}
-        </Typography>
-        <Typography 
-          variant="body2" 
-          color="text.secondary" 
-          className="line-clamp-3 text-sm flex-grow"
-        >
-          {movie.overview || 'No overview available.'}
-        </Typography>
-      </CardContent>
-    </Card>
+          )}
+        </div>
+        
+        {/* Hover Overlay */}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-4">
+          <div className="flex items-center mb-2">
+            <div className="bg-yellow-500 text-black text-xs font-bold px-2 py-0.5 rounded mr-2">
+              {movie.vote_average ? movie.vote_average.toFixed(1) : 'N/A'}
+            </div>
+            <span className="text-yellow-400 text-xs">
+              {movie.vote_count ? `(${movie.vote_count.toLocaleString()})` : ''}
+            </span>
+          </div>
+          <h3 className="text-white font-bold text-lg mb-1 line-clamp-2">
+            {movie.title}
+          </h3>
+          {movie.release_date && (
+            <p className="text-gray-300 text-sm mb-2">
+              {new Date(movie.release_date).getFullYear()}
+              {movie.original_language && movie.original_language !== 'en' && (
+                <span className="ml-2 px-1.5 py-0.5 bg-gray-700 rounded text-xs">
+                  {movie.original_language.toUpperCase()}
+                </span>
+              )}
+            </p>
+          )}
+          <p className="text-gray-300 text-sm line-clamp-3">
+            {movie.overview || 'No overview available.'}
+          </p>
+          {movie.genre_names && movie.genre_names.length > 0 && (
+            <div className="mt-2 flex flex-wrap gap-1">
+              {movie.genre_names.slice(0, 3).map((genre, index) => (
+                <span key={index} className="text-xs px-2 py-0.5 bg-gray-700 rounded-full">
+                  {genre}
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+      
+      <div className="mt-2">
+        <h3 className="font-semibold text-gray-900 line-clamp-1">{movie.title}</h3>
+        <div className="flex items-center justify-between mt-1">
+          <p className="text-sm text-gray-600">
+            {movie.release_date ? new Date(movie.release_date).getFullYear() : 'N/A'}
+          </p>
+          {showRating && (
+            <div className="flex items-center">
+              <span className="text-xs text-gray-500 mr-1">Rate:</span>
+              <Rating 
+                movieId={movie?.id}
+                initialRating={movie?.user_rating || 0}
+                onRate={handleRate}
+                size="xs"
+                className="ml-1"
+              />
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
   );
 };
 

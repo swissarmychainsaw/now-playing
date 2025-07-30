@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { FaStar } from 'react-icons/fa';
 import { toast } from 'react-hot-toast';
 import { useUser } from '../../context/UserContext';
@@ -11,15 +11,16 @@ const Rating = ({ movieId, initialRating = 0, onRate, size = 'md' }) => {
   const sizes = {
     xs: 'text-xs',
     sm: 'text-sm',
-    md: 'text-lg',
-    lg: 'text-2xl'
+    md: 'text-base',
+    lg: 'text-xl',
+    xl: 'text-2xl'
   };
 
   useEffect(() => {
     setRating(initialRating);
   }, [initialRating]);
 
-  const handleClick = async (ratingValue) => {
+  const handleClick = useCallback(async (ratingValue) => {
     if (!isAuthenticated) {
       toast('Please sign in to rate movies', {
         icon: '🔒',
@@ -29,48 +30,41 @@ const Rating = ({ movieId, initialRating = 0, onRate, size = 'md' }) => {
     }
     
     try {
-      // Optimistic UI update
-      const previousRating = rating;
-      setRating(ratingValue);
+      // Don't update if clicking the same rating (allow clearing rating)
+      const newRating = rating === ratingValue ? 0 : ratingValue;
+      setRating(newRating);
       
       if (onRate) {
-        await onRate(movieId, ratingValue);
+        await onRate(movieId, newRating);
         toast.success('Rating saved!', {
           duration: 2000,
         });
       }
     } catch (error) {
-      // Revert on error
-      setRating(previousRating);
+      console.error('Error saving rating:', error);
       toast.error('Failed to save rating. Please try again.');
     }
-  };
+  }, [movieId, onRate, isAuthenticated, rating]);
 
   return (
-    <div className="flex">
-      {[...Array(5)].map((_, index) => {
-        const ratingValue = index + 1;
-        return (
-          <label key={index} className="cursor-pointer">
-            <input
-              type="radio"
-              name={`rating-${movieId}`}
-              value={ratingValue}
-              onClick={() => handleClick(ratingValue)}
-              className="hidden"
-            />
-            <FaStar
-              className={`${sizes[size]} ${
-                ratingValue <= (hover || rating)
-                  ? 'text-yellow-400'
-                  : 'text-gray-300'
-              }`}
-              onMouseEnter={() => setHover(ratingValue)}
-              onMouseLeave={() => setHover(null)}
-            />
-          </label>
-        );
-      })}
+    <div className="flex items-center">
+      {[1, 2, 3, 4, 5].map((ratingValue) => (
+        <button
+          key={ratingValue}
+          type="button"
+          className={`${sizes[size]} p-0.5 focus:outline-none ${
+            ratingValue <= (hover || rating)
+              ? 'text-yellow-400'
+              : 'text-gray-300'
+          }`}
+          onClick={() => handleClick(ratingValue)}
+          onMouseEnter={() => setHover(ratingValue)}
+          onMouseLeave={() => setHover(null)}
+          aria-label={`Rate ${ratingValue} out of 5`}
+        >
+          <FaStar className="w-4 h-4" />
+        </button>
+      ))}
     </div>
   );
 };

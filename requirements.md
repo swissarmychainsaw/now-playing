@@ -1,8 +1,7 @@
 
 
-NOW PLAYING – LANDING PAGE REFACTOR FOR AI BUILD
+# NOW PLAYING – REQUIREMENTS 
 
-lready in Your Version
 * Component breakdowns with props, purpose, and AI prompts:
     * Header
     * SearchBox
@@ -44,7 +43,7 @@ lready in Your Version
 
 
 
-COMPONENT: Header
+## COMPONENT: Header
 Purpose: Displays the app title, user info, and navigation buttons Props: user, onLogout, onNavigate
 Visual layout (approximate):
 Now Playing [My Ratings] [Sign Out] [User Icon]
@@ -57,8 +56,9 @@ AI Prompt Example: Build a React component called Header styled with Tailwind.
 * On the left: the text “Now Playing” in a cursive font, extra large, white
 * On the right: a circular user icon, a “My Ratings” button, and a “Sign Out” button All items should align horizontally and responsively collapse for mobile.
 
-COMPONENT: SearchBox
-Purpose: Provides search functionality for movies Props: onSearch
+## COMPONENT: SearchBox
+Purpose: Enable users to search for a specific movie, view its detail page, and receive five high-quality, semantically grouped recommendations based on the selected movie’s director, top-billed cast, and genre.
+ 
 User Story: As a user, I want to type a movie name and hit Enter or click Search to view results.
 Layout: [ Search movies... ] [ Search ]
 AI Prompt Example: Build a React component called SearchBox using Tailwind.
@@ -66,7 +66,120 @@ AI Prompt Example: Build a React component called SearchBox using Tailwind.
 * A blue Search button centered below the input
 * When the user hits Enter or clicks Search, the component should call onSearch(term)
 
-COMPONENT: RecommendationTabs
+### User Flow
+1. User types in the search box (e.g., “Star Wars”)
+2. Auto-complete suggests movie titles in real-time
+3. On selection, user is taken to a Search Results page that:
+    * Shows the full Movie Detail for the selected movie
+    * Shows 5 recommended movies beneath it, grouped by:
+        * 🎬 Director
+        * 👤 Top 3 actors
+        * 🎞️ Genre
+
+### Functional Requirements
+1. Search Box with Auto-Complete
+* Type-ahead auto-complete using fuzzy match on:
+    * Movie title (required)
+    * Actor name (optional for future scope)
+    * Director name (optional for future scope)
+* Minimum 2 characters to trigger suggestions
+* Shows up to 10 results in dropdown
+* Displays: Movie Title + Year (e.g., Star Wars (1977))
+2. Movie Detail Section
+* Display for selected movie:
+    * Title
+    * Poster
+    * Overview
+    * Release date
+    * Runtime
+    * Genre(s)
+    * Director
+    * Top 4 billed cast members
+    * User’s rating / Not Interested / Watchlist buttons
+3. Recommendation Spokes (5)
+* Display below the movie detail as 5 clickable “spokes”:
+    1. One movie by the same director
+    2. One movie with Actor 1
+    3. One movie with Actor 2
+    4. One movie with Actor 3
+    5. One movie in the same genre
+* Each recommendation card includes:
+    * Poster
+    * Title
+    * Release Year
+    * Actor/director/tag that links it (e.g., “Also starring Harrison Ford”)
+4. Interactivity
+* Clicking a recommended movie:
+    * Navigates to its Movie Detail and generates five new spokes
+* Clicking on a cast or director tag shows additional content via filter or modal (future enhancement)
+
+### Use Cases
+🎯 Use Case 1: Genre-Based Exploration
+* User searches for Star Wars
+* Sees the movie detail page
+* Clicks the “Sci-Fi” recommendation, leading them to Blade Runner
+* Continues exploring from there
+🎯 Use Case 2: Actor-Focused Journey
+* User loves Harrison Ford and clicks on the recommendation card with The Fugitive
+* Rates it highly, strengthening the system’s preference weight for Ford
+🎯 Use Case 3: Director Curiosity
+* User notices Irvin Kershner directed Empire Strikes Back
+* Clicks on the director-based recommendation to explore Never Say Never Again
+* Discovers a new movie they hadn't considered
+
+🛠️ Developer Notes
+* Use TMDb API or your own database to:
+    * Lookup movie by title
+    * Extract: genre_ids, director, cast (in order of billing)
+    * Query for movies matching:
+        * Same director (limit 1)
+        * Top 3 cast (limit 1 each)
+        * Same genre (limit 1)
+* Cache cast/director queries to reduce API overhead
+* Ensure fallback logic: if any cast/director/genre has no results, substitute with top-rated or trending content in same genre
+
+🧱 Optional Enhancements
+* Hover/tooltip on each recommended card: “Why this is here”
+* “Thumbs up/down” feedback buttons to refine future recs
+* Keyboard support for auto-complete + selection
+* Display streaming availability for recommended movies
+
+Error Handling & API Resilience
+To ensure a smooth and uninterrupted user experience, the Search Results page includes robust error handling and fallback strategies for all data-fetching operations.
+1. API Error Handling
+* All API calls (e.g., search, movie detail, cast, recommendations) must:
+    * Return a default error object with an error code and user-facing message.
+    * Log the error for analytics/debugging (e.g., Sentry, Firebase, or console).
+    * Display a friendly UI message such as: "Sorry, something went wrong loading recommendations. Try again or search another movie."
+2. Fallback Strategy
+* If the primary API (e.g., TMDb) fails or times out:
+    * Retry the call up to 2 times using exponential backoff.
+    * If it still fails, fall back to a secondary data source (e.g., OMDb API or internal cache).
+    * If both sources fail:
+        * Show static placeholder content (e.g., trending movies or editor’s picks).
+        * Include a “Retry” button for the user to manually reload.
+3. Partial Data Handling
+* If some fields are missing (e.g., director is null, or fewer than 3 cast members):
+    * Fill missing slots with:
+        * Top-rated movies in the same genre
+        * Trending titles
+        * "Editor’s Picks" if applicable
+    * Ensure no component breaks the UI if optional data is undefined.
+4. Auto-Complete Failures
+* If search suggestions can’t be retrieved:
+    * Let user continue typing and perform a direct search on submit
+    * Display error under input: "Suggestions unavailable right now — hit enter to search manually."
+5. Client-Side Fallbacks
+* If a user is offline or the fetch fails entirely:
+    * Detect with navigator.onLine
+    * Show: "No connection. Please check your internet and try again."
+    * Offer cached or saved movies from localStorage (if implemented)
+
+
+
+
+
+## COMPONENT: RecommendationTabs
 Purpose: Allows users to switch between curated categories Tabs: For You, Oscar Winners, Popular, Critics’ Picks State: Active tab is visually highlighted
 User Story: As a user, I want to click category tabs to see different sets of movies.
 AI Prompt Example: Create a React component called RecommendationTabs.
@@ -446,9 +559,9 @@ Performance Considerations
 * Efficient list rendering with proper keys
 This implementation provides a smooth, responsive, and engaging user experience while maintaining good performance and code quality.
 
-MovieCard detail
+### MovieCard detail
 
-Movie Card Features - Detailed Breakdown
+## Movie Card Features - Detailed Breakdown
 1. Visual Design & Layout
 * Clean, Modern Interface
     * Card-based design with subtle shadows and rounded corners
@@ -569,9 +682,9 @@ Looking for "oscar" in the movie's awards (if available)
 Matching against our sample list of Oscar winners
 Note that the Oscar winner detection is simplified and might not catch all winners. In a production app, you'd want to use a more reliable data source or API for Oscar nominations and wins.
 
-MOVIE DETAIL PAGE – REFACTOR FOR AI BUILD
+### MOVIE DETAIL PAGE – REFACTOR FOR AI BUILD
 
-PAGE: MovieDetailPage
+## PAGE: MovieDetailPage
 Purpose: Shows detailed movie info with streaming, cast, and rating controls Route: /movie/:id Includes: Header, main movie info section, thumbs rating, streaming providers, cast list, similar movies
 Initial behavior:
 * Loads movie info based on ID
@@ -586,12 +699,14 @@ AI Prompt Example: Build a React component called MovieDetailPage. It should:
 * If no streaming data is available, omit the section
 * Below the main content, show cast members and similar movies
 
-COMPONENT: MovieInfoSection
+
+## COMPONENT: MovieInfoSection
 Purpose: Displays core movie metadata Props: movie (title, year, runtime, rating, genre, summary, director, top 3 actors)
 Layout:
 * Left: large poster image
 * Right: movie title, release year, runtime, rating, genre tags, summary, director, top cast, thumbs up/down, rating guidance text
 User Story: As a user, I want to see all the essential information about a movie in one place.
+
 AI Prompt Example: Build a React component called MovieInfoSection.
 * Layout: flex or grid, with the poster on the left and details on the right
 * Details should include:
@@ -602,7 +717,7 @@ AI Prompt Example: Build a React component called MovieInfoSection.
 * Add thumbs up and thumbs down icons
 * Below icons, add the text: “Rate movies to get better recommendations!”
 
-COMPONENT: WatchOptions
+## COMPONENT: WatchOptions
 Purpose: Displays streaming providers where the movie is available Props: providers (array of services), fallbackLink
 User Story: As a user, I want to see where I can stream or watch the movie online.
 Behavior:

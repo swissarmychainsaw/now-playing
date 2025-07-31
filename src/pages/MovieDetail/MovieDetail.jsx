@@ -285,143 +285,283 @@ const MovieDetail = () => {
 
   return (
     <div className="min-h-screen bg-gray-900 text-white">
-      <div className="pt-16">
-        {/* Backdrop and Header */}
-        <div className="relative pt-24 pb-8 w-full bg-gray-800 -mt-16">
-          <div className="absolute inset-0 overflow-hidden">
-            <div className="absolute inset-0 bg-gradient-to-b from-gray-900 to-gray-800">
-              {movie.backdrop_path && (
-                <img
-                  src={`https://image.tmdb.org/t/p/original${movie.backdrop_path}`}
-                  alt={movie.title}
-                  className="w-full h-full object-cover opacity-30"
-                  onError={(e) => {
-                    if (e.target) e.target.style.display = 'none';
-                  }}
-                />
-              )}
-            </div>
-          </div>
-        </div>
-      
+      {/* Backdrop */}
+      <div className="fixed inset-0 -z-10">
+        {movie.backdrop_path && (
+          <img
+            src={`https://image.tmdb.org/t/p/original${movie.backdrop_path}`}
+            alt={movie.title}
+            className="w-full h-full object-cover opacity-20"
+            onError={(e) => {
+              if (e.target) e.target.style.display = 'none';
+            }}
+          />
+        )}
+        <div className="absolute inset-0 bg-gradient-to-b from-gray-900/90 via-gray-900/70 to-gray-900" />
+      </div>
+
       {/* Main Content */}
-      <div className="container mx-auto px-4 py-8 -mt-16 relative z-20">
+      <div className="container mx-auto px-4 pt-32 pb-16 relative z-10">
         <div className="max-w-7xl mx-auto">
           <div className="flex flex-col lg:flex-row gap-8">
-            {/* Left Column */}
-            <div className="lg:w-2/3">
-              <div className="bg-gray-900/80 backdrop-blur-sm rounded-xl p-6 border border-gray-800/50 shadow-xl">
-              {/* Overview */}
-              <div className="mb-8">
-                <h2 className="text-xl font-bold mb-3 text-white flex items-center">
-                  <span className="w-8 h-0.5 bg-blue-500 mr-3"></span>
-                  Overview
-                </h2>
-                <p className="text-gray-300 leading-relaxed">
-                  {movie.overview}
-                </p>
+            {/* Left Column - Movie Poster and Info */}
+            <div className="lg:w-1/4">
+              <div className="bg-gray-900/80 backdrop-blur-sm rounded-xl p-4 border border-gray-800/50 shadow-xl">
+                {movie.poster_path ? (
+                  <img
+                    src={`https://image.tmdb.org/t/p/w500${movie.poster_path}`}
+                    alt={movie.title}
+                    className="w-full rounded-lg shadow-lg"
+                    onError={(e) => {
+                      if (e.target) e.target.style.display = 'none';
+                    }}
+                  />
+                ) : (
+                  <div className="w-full aspect-[2/3] bg-gray-800 rounded-lg flex items-center justify-center">
+                    <FaFilm className="w-16 h-16 text-gray-600" />
+                  </div>
+                )}
               </div>
+            </div>
+            
+            {/* Middle Column - Movie Details */}
+            <div className="lg:w-2/4">
+              <div className="bg-gray-900/80 backdrop-blur-sm rounded-xl p-6 border border-gray-800/50 shadow-xl">
+                {/* Overview */}
+                <div className="mb-8">
+                  <h2 className="text-xl font-bold mb-3 text-white flex items-center">
+                    <span className="w-8 h-0.5 bg-blue-500 mr-3"></span>
+                    Overview
+                  </h2>
+                  <p className="text-gray-300 leading-relaxed">
+                    {movie.overview}
+                  </p>
+                </div>
 
-              {/* Cast & Director */}
-              <div className="mb-8">
-                <h2 className="text-xl font-bold mb-4 text-white flex items-center">
-                  <span className="w-8 h-0.5 bg-blue-500 mr-3"></span>
-                  Cast & Crew
-                </h2>
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-                  {/* Director Card */}
-                  {director && (
-                    <div className="bg-gray-800/50 rounded-lg overflow-hidden border border-blue-500/30">
-                      <div className="w-full aspect-[2/3] bg-blue-900/20 relative">
-                        {director.profile_path ? (
-                          <img
-                            src={`https://image.tmdb.org/t/p/w200${director.profile_path}`}
-                            alt={director.name}
-                            className="w-full h-full object-cover"
-                            onError={(e) => {
-                              if (e?.target) {
-                                e.target.style.display = 'none';
-                                if (e.target.nextElementSibling) {
-                                  e.target.nextElementSibling.style.display = 'flex';
+                {/* Cast & Director */}
+                <div className="mb-8">
+                  <h2 className="text-xl font-bold mb-4 text-white flex items-center">
+                    <span className="w-8 h-0.5 bg-blue-500 mr-3"></span>
+                    Cast & Crew
+                  </h2>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                    {/* Director Card */}
+                    {director && (
+                      <div className="bg-gray-800/50 rounded-lg overflow-hidden border border-blue-500/30">
+                        <div className="w-full aspect-[2/3] bg-blue-900/20 relative">
+                          {director.profile_path ? (
+                            <img
+                              src={`https://image.tmdb.org/t/p/w200${director.profile_path}`}
+                              alt={director.name}
+                              className="w-full h-full object-cover"
+                              onError={(e) => {
+                                if (e?.target) {
+                                  e.target.style.display = 'none';
+                                  if (e.target.nextElementSibling) {
+                                    e.target.nextElementSibling.style.display = 'flex';
+                                  }
                                 }
-                              }
-                            }}
-                          />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center text-blue-300">
-                            <FaFilm className="w-12 h-12" />
+                              }}
+                            />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center text-blue-300">
+                              <FaFilm className="w-12 h-12" />
+                            </div>
+                          )}
+                          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-2">
+                            <span className="text-xs font-medium text-blue-300">Director</span>
                           </div>
-                        )}
-                        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-2">
-                          <span className="text-xs font-medium text-blue-300">Director</span>
+                        </div>
+                        <div className="p-3">
+                          <Link 
+                            to={`/director/${director.id}`}
+                            className="font-medium text-white hover:text-blue-400 transition-colors block truncate"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            {director.name}
+                          </Link>
+                          <p className="text-sm text-gray-400">Director</p>
                         </div>
                       </div>
-                      <div className="p-3">
-                        <Link 
-                          to={`/director/${director.id}`}
-                          className="font-medium text-white hover:text-blue-400 transition-colors block truncate"
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          {director.name}
-                        </Link>
-                        <p className="text-sm text-gray-400">Director</p>
-                      </div>
-                    </div>
-                  )}
-                  
-                  {/* Cast Cards */}
-                  {movie.cast && movie.cast.length > 0 && (
-                    <div className="mt-8">
-                      <h2 className="text-xl font-bold mb-4">Cast</h2>
-                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-                        {movie.cast.slice(0, 6).map((person) => (
-                          <div key={person.id} className="bg-gray-800/50 rounded-lg overflow-hidden border border-gray-700/50 hover:border-blue-500/50 transition-colors">
-                            <div className="relative aspect-[2/3] bg-gray-900">
-                              {person.profile_path ? (
-                                <img
-                                  src={`https://image.tmdb.org/t/p/w500${person.profile_path}`}
-                                  alt={person.name}
-                                  className="w-full h-full object-cover"
-                                  onError={(e) => {
-                                    if (e?.target) {
-                                      e.target.style.display = 'none';
-                                      if (e.target.nextElementSibling) {
-                                        e.target.nextElementSibling.style.display = 'flex';
-                                      }
-                                    }
-                                  }}
-                                />
-                              ) : null}
-                              <div className="w-full h-full hidden items-center justify-center text-gray-400 bg-gray-800">
-                                <svg className="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                                </svg>
-                              </div>
+                    )}
+                    
+                    {/* Cast Cards */}
+                    {movie.credits?.cast && movie.credits.cast.slice(0, 3).map((person) => (
+                      <div key={person.id} className="bg-gray-800/50 rounded-lg overflow-hidden border border-gray-700/50 hover:border-blue-500/50 transition-colors">
+                        <div className="relative aspect-[2/3] bg-gray-900">
+                          {person.profile_path ? (
+                            <img
+                              src={`https://image.tmdb.org/t/p/w500${person.profile_path}`}
+                              alt={person.name}
+                              className="w-full h-full object-cover"
+                              onError={(e) => {
+                                if (e?.target) {
+                                  e.target.style.display = 'none';
+                                  if (e.target.nextElementSibling) {
+                                    e.target.nextElementSibling.style.display = 'flex';
+                                  }
+                                }
+                              }}
+                            />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center text-gray-400 bg-gray-800">
+                              <svg className="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                              </svg>
                             </div>
-                            <div className="p-3">
-                              <h3 className="font-medium text-white truncate">{person.name}</h3>
-                              <p className="text-sm text-gray-400 truncate">{person.character}</p>
-                            </div>
-                          </div>
-                        ))}
+                          )}
+                        </div>
+                        <div className="p-3">
+                          <h3 className="font-medium text-white truncate">{person.name}</h3>
+                          <p className="text-sm text-gray-400 truncate">{person.character}</p>
+                        </div>
                       </div>
-                    </div>
-                  )}
-                </div>
+                    ))}
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
-          
-          {/* Right Column */}
-          <div className="lg:w-1/3">
-            <div className="space-y-4">
-              {/* Rate this Movie */}
-              <div className="bg-gray-800/50 rounded-xl p-4 border border-gray-700/50">
-                <h2 className="text-lg font-bold mb-3 text-white flex items-center">
-                  <span className="w-6 h-0.5 bg-blue-500 mr-2"></span>
-                  Your Rating
-                </h2>
+            
+            {/* Right Column */}
+            <div className="lg:w-1/4">
+              <div className="sticky top-24 space-y-4">
+                {/* Your Rating Section */}
+                <div className="bg-gray-800/80 backdrop-blur-sm rounded-xl p-5 border border-gray-700/50 shadow-lg">
+                  <h2 className="text-lg font-bold mb-3 text-white flex items-center">
+                    <span className="w-6 h-0.5 bg-blue-500 mr-2"></span>
+                    Your Rating
+                  </h2>
+                  <div className="flex flex-col items-center">
+                    {ratingsLoading ? (
+                      <div className="flex justify-center py-2">
+                        <div className="animate-pulse flex space-x-1">
+                          {[1, 2, 3, 4, 5].map((i) => (
+                            <div key={i} className="w-6 h-6 bg-gray-700 rounded"></div>
+                          ))}
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex gap-1 mb-2">
+                        {[1, 2, 3, 4, 5].map((star) => (
+                          <button
+                            key={star}
+                            onClick={async () => {
+                              if (isRating) return;
+                              const newRating = currentRating === star ? 0 : star;
+                              try {
+                                await rateMovie(movie.id, newRating, {
+                                  id: movie.id,
+                                  title: movie.title,
+                                  poster_path: movie.poster_path,
+                                  release_date: movie.release_date,
+                                  overview: movie.overview,
+                                });
+                                setCurrentRating(newRating);
+                                toast.success(
+                                  newRating > 0 
+                                    ? `Rated ${newRating} star${newRating > 1 ? 's' : ''}!`
+                                    : 'Rating removed'
+                                );
+                              } catch (error) {
+                                console.error('Error rating movie:', error);
+                                toast.error('Failed to update rating');
+                              }
+                            }}
+                            className={`text-2xl transition-colors ${currentRating >= star ? 'text-yellow-400' : 'text-gray-400 hover:text-yellow-400'}`}
+                            disabled={isRating}
+                          >
+                            ★
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                    <span className="text-sm text-gray-400">
+                      {currentRating > 0 ? `You rated this ${currentRating} star${currentRating > 1 ? 's' : ''}` : 'Rate this movie'}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Watch Trailer */}
+                {trailerUrl && (
+                  <div className="bg-gray-800/80 backdrop-blur-sm rounded-xl p-5 border border-gray-700/50 shadow-lg mt-4">
+                    <h2 className="text-lg font-bold mb-3 text-white flex items-center">
+                      <span className="w-6 h-0.5 bg-red-500 mr-2"></span>
+                      Watch Trailer
+                    </h2>
+                    <button
+                      onClick={toggleTrailer}
+                      className="w-full bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-4 rounded-lg transition-colors flex items-center justify-center gap-2"
+                    >
+                      <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M6.3 2.841A1.5 1.5 0 004 4.11v11.78a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z"></path>
+                      </svg>
+                      Play Trailer
+                    </button>
+                  </div>
+                )}
+
+                {/* Where to Watch */}
+                {movie.providers?.length > 0 && (
+                  <div className="bg-gray-800/80 backdrop-blur-sm rounded-xl p-5 border border-gray-700/50 shadow-lg mt-4">
+                    <h2 className="text-lg font-bold mb-3 text-white flex items-center">
+                      <span className="w-6 h-0.5 bg-blue-500 mr-2"></span>
+                      Where to Watch
+                    </h2>
+                    <div className="space-y-2">
+                      {movie.providers.map((provider, index) => {
+                            if (isRating) return;
+                            const newRating = currentRating === star ? 0 : star;
+                            try {
+                              await rateMovie(movie.id, newRating, {
+                                id: movie.id,
+                                title: movie.title,
+                                poster_path: movie.poster_path,
+                                release_date: movie.release_date,
+                                overview: movie.overview,
+                              });
+                              setCurrentRating(newRating);
+                              toast.success(
+                                newRating > 0 
+                                  ? `Rated ${newRating} star${newRating > 1 ? 's' : ''}!`
+                                  : 'Rating removed'
+                              );
+                            } catch (error) {
+                              console.error('Error rating movie:', error);
+                              toast.error('Failed to update rating');
+                            }
+                          }}
+                          className={`text-2xl transition-colors ${currentRating >= star ? 'text-yellow-400' : 'text-gray-400 hover:text-yellow-400'}`}
+                          disabled={isRating}
+                        >
+                          ★
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  <span className="text-sm text-gray-400">
+                    {currentRating > 0 ? `You rated this ${currentRating} star${currentRating > 1 ? 's' : ''}` : 'Rate this movie'}
+                  </span>
+                </div>
+              </div>
+
+              {/* Watch Trailer */}
+              {trailerUrl && (
+                <div className="bg-gray-800/80 backdrop-blur-sm rounded-xl p-5 border border-gray-700/50 shadow-lg">
+                  <h2 className="text-lg font-bold mb-3 text-white flex items-center">
+                    <span className="w-6 h-0.5 bg-red-500 mr-2"></span>
+                    Watch Trailer
+                  </h2>
+                  <button
+                    onClick={toggleTrailer}
+                    className="w-full bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-4 rounded-lg transition-colors flex items-center justify-center gap-2"
+                  >
+                    <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M6.3 2.841A1.5 1.5 0 004 4.11v11.78a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z"></path>
+                    </svg>
+                    Play Trailer
+                  </button>
+                </div>
+              )}
                 <div className="flex flex-col items-center">
                   {ratingsLoading ? (
                     <div className="flex justify-center py-2">
@@ -502,47 +642,32 @@ const MovieDetail = () => {
                   </div>
                 </div>
 
-                {/* Watch Trailer */}
-                {trailerUrl && (
-                  <div className="bg-gray-800/50 rounded-xl p-4 border border-gray-700/50">
-                    <h2 className="text-lg font-bold mb-3 text-white flex items-center">
-                      <span className="w-6 h-0.5 bg-red-500 mr-2"></span>
-                      Watch Trailer
-                    </h2>
-                    <button
-                      onClick={toggleTrailer}
-                      className="flex items-center justify-center gap-2 w-full px-3 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors text-sm"
-                    >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
-                      <span>Watch Trailer</span>
-                    </button>
-                    {showTrailer && trailerUrl && (
-                      <div className="mt-4 aspect-video w-full bg-black rounded-lg overflow-hidden">
-                        <iframe
-                          width="100%"
-                          height="100%"
-                          src={trailerUrl}
-                          title={`${movie.title} Trailer`}
-                          frameBorder="0"
-                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                          allowFullScreen
-                          className="w-full h-full"
-                        ></iframe>
-                      </div>
-                    )}
-                  </div>
-                )}
+              {/* Watch Trailer */}
+              {trailerUrl && (
+                <div className="bg-gray-800/80 backdrop-blur-sm rounded-xl p-5 border border-gray-700/50 shadow-lg">
+                  <h2 className="text-lg font-bold mb-3 text-white flex items-center">
+                    <span className="w-6 h-0.5 bg-red-500 mr-2"></span>
+                    Watch Trailer
+                  </h2>
+                  <button
+                    onClick={toggleTrailer}
+                    className="w-full bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-4 rounded-lg transition-colors flex items-center justify-center gap-2"
+                  >
+                    <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M6.3 2.841A1.5 1.5 0 004 4.11v11.78a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z"></path>
+                    </svg>
+                    Play Trailer
+                  </button>
+                </div>
+              )}
 
-                {/* Where to Watch */}
-                {movie.providers?.length > 0 && (
-                  <div className="bg-gray-800/50 rounded-xl p-4 border border-gray-700/50">
-                    <h2 className="text-lg font-bold mb-3 text-white flex items-center">
-                      <span className="w-6 h-0.5 bg-blue-500 mr-2"></span>
-                      Where to Watch
-                    </h2>
+              {/* Where to Watch */}
+              {movie.providers?.length > 0 && (
+                <div className="bg-gray-800/80 backdrop-blur-sm rounded-xl p-5 border border-gray-700/50 shadow-lg">
+                  <h2 className="text-lg font-bold mb-3 text-white flex items-center">
+                    <span className="w-6 h-0.5 bg-blue-500 mr-2"></span>
+                    Where to Watch
+                  </h2>
                     <div className="space-y-2">
                       {movie.providers.map((provider, index) => {
                         const getInitials = (name) => {

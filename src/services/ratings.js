@@ -1,5 +1,15 @@
 import { db } from '../firebase';
-import { doc, getDoc, setDoc, updateDoc, arrayUnion, arrayRemove, serverTimestamp } from 'firebase/firestore';
+import { 
+  doc, 
+  getDoc, 
+  setDoc, 
+  updateDoc, 
+  arrayUnion, 
+  arrayRemove, 
+  serverTimestamp,
+  onSnapshot,
+  deleteField 
+} from 'firebase/firestore';
 
 /**
  * Save or update a user's rating for a movie
@@ -10,40 +20,78 @@ import { doc, getDoc, setDoc, updateDoc, arrayUnion, arrayRemove, serverTimestam
  * @returns {Promise<boolean>} - Returns true if successful
  */
 export const saveRating = async (userId, movieId, rating, movieData = {}) => {
+  console.log(`Saving rating - User: ${userId}, Movie: ${movieId}, Rating: ${rating}`);
+  
   if (!userId || !movieId || rating === undefined) {
-    console.error('Missing required parameters for saveRating');
-    throw new Error('Missing required parameters');
+    const error = new Error('Missing required parameters for saveRating');
+    console.error(error.message, { userId, movieId, rating });
+    throw error;
   }
 
-  if (rating < 1 || rating > 5) {
-    console.error('Invalid rating value. Must be between 1 and 5');
-    throw new Error('Rating must be between 1 and 5');
+  // Special status values: -1 for not interested, -2 for want to watch
+  const validStatusValues = [-2, -1, 0, 1, 2, 3, 4, 5];
+  if (!validStatusValues.includes(rating)) {
+    const error = new Error('Invalid rating value. Must be between 0 and 5, or -1 (not interested) or -2 (want to watch)');
+    console.error(error.message, { rating });
+    throw error;
   }
 
   try {
     const userRef = doc(db, 'users', userId);
     const ratingData = {
       movieId,
-      rating,
+      status: rating === 0 ? 'not_rated' : 
+              rating === -1 ? 'not_interested' :
+              rating === -2 ? 'want_to_watch' : 'rated',
+      rating: rating > 0 ? rating : null,
       ...movieData,
       ratedAt: serverTimestamp(),
       updatedAt: serverTimestamp()
     };
 
-    // Use setDoc with merge to create or update the document
-    await setDoc(
-      userRef,
-      {
-        [`ratings.${movieId}`]: ratingData,
-        updatedAt: serverTimestamp()
-      },
-      { merge: true }
-    );
+    console.log('Saving rating data:', { userId, movieId, ratingData });
 
+    // First, get the current document to check if it exists
+    const userDoc = await getDoc(userRef);
+    
+    if (!userDoc.exists()) {
+      console.log('Creating new user document');
+      // Create the document with initial data if it doesn't exist
+      await setDoc(userRef, {
+        ratings: { [movieId]: ratingData },
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      });
+    } else {
+      console.log('Updating existing user document');
+      // Update the document
+      const updateData = {
+        updatedAt: serverTimestamp()
+      };
+      
+      if (rating === 0) {
+        // Remove the rating if rating is 0
+        updateData[`ratings.${movieId}`] = deleteField();
+      } else {
+        // Update the rating
+        updateData[`ratings.${movieId}`] = ratingData;
+      }
+      
+      await updateDoc(userRef, updateData);
+    }
+
+    console.log('Rating saved successfully');
     return true;
   } catch (error) {
-    console.error('Error saving rating:', error);
-    throw error;
+    console.error('Error saving rating:', {
+      error: error.message,
+      stack: error.stack,
+      userId,
+      movieId,
+      rating,
+      movieData
+    });
+    throw new Error('Failed to save rating. Please try again.');
   }
 };
 
@@ -146,37 +194,130 @@ export const getUserRatingForMovie = async (userId, movieId) => {
 /**
  * Set up a real-time listener for a user's ratings
  * @param {string} userId - The ID of the user
- * @param {Function} callback - Function to call when ratings change
+ * @param {Function} onNext - Function to call when ratings change
+ * @param {Function} [onError] - Optional error callback
  * @returns {Function} - Unsubscribe function
  */
-export const onRatingsChange = (userId, callback) => {
+export const onRatingsChange = (userId, onNext, onError) => {
+  console.log('Setting up ratings listener for user:', userId);
+  
   if (!userId) {
-    console.warn('Cannot set up ratings listener: No user ID provided');
+    const error = new Error('Cannot set up ratings listener: No user ID provided');
+    console.warn(error.message);
+    if (onError) onError(error);
     return () => {};
   }
 
   const userRef = doc(db, 'users', userId);
   
-  const unsubscribe = onSnapshot(
-    userRef,
-    (doc) => {
-      if (doc.exists()) {
-        callback(doc.data().ratings || {});
-      } else {
-        // Document doesn't exist, create it
-        setDoc(userRef, { 
-          ratings: {}, 
-          createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp()
-        })
-          .then(() => callback({}))
-          .catch(console.error);
+  try {
+    const unsubscribe = onSnapshot(
+      userRef,
+      (doc) => {
+        try {
+          console.log('Received ratings update:', doc.exists() ? 'Document exists' : 'Document does not exist');
+          
+          if (doc.exists()) {
+            const data = doc.data();
+            console.log('Ratings data:', data?.ratings || 'No ratings found');
+            onNext(data?.ratings || {});
+          } else {
+            console.log('User document does not exist, creating...');
+            // Document doesn't exist, create it
+            setDoc(userRef, { 
+              ratings: {}, 
+              createdAt: serverTimestamp(),
+              updatedAt: serverTimestamp()
+            })
+              .then(() => {
+                console.log('Created new user document with empty ratings');
+                onNext({});
+              })
+              .catch(error => {
+                console.error('Error creating user document:', error);
+                if (onError) onError(error);
+              });
+          }
+        } catch (error) {
+          console.error('Error processing ratings snapshot:', {
+            error: error.message,
+            stack: error.stack,
+            userId
+          });
+          if (onError) onError(error);
+        }
+      },
+      (error) => {
+        console.error('Error in ratings listener:', {
+          error: error.message,
+          code: error.code,
+          stack: error.stack,
+          userId
+        });
+        if (onError) onError(error);
       }
-    },
-    (error) => {
-      console.error('Error in ratings listener:', error);
-    }
-  );
+    );
 
-  return unsubscribe;
+    console.log('Successfully set up ratings listener');
+    return () => {
+      console.log('Cleaning up ratings listener');
+      unsubscribe();
+    };
+  } catch (error) {
+    console.error('Failed to set up ratings listener:', {
+      error: error.message,
+      stack: error.stack,
+      userId
+    });
+    if (onError) onError(error);
+    return () => {};
+  }
 };
+
+/**
+ * Clear all ratings for a user
+ * @param {string} userId - The ID of the user
+ * @returns {Promise<boolean>} - Returns true if successful
+ */
+export const clearAllRatings = async (userId) => {
+  if (!userId) {
+    throw new Error('User ID is required to clear ratings');
+  }
+
+  try {
+    const userRef = doc(db, 'users', userId);
+    
+    // First get all ratings to delete them properly
+    const userDoc = await getDoc(userRef);
+    if (!userDoc.exists()) {
+      console.log('No user document found, nothing to clear');
+      return true;
+    }
+    
+    const userData = userDoc.data();
+    if (!userData.ratings) {
+      console.log('No ratings found to clear');
+      return true;
+    }
+    
+    // Create an update object to clear all ratings
+    const updates = {};
+    Object.keys(userData.ratings).forEach(movieId => {
+      updates[`ratings.${movieId}`] = deleteField();
+    });
+    
+    // Also clear the ratedMovies array if it exists
+    if (userData.ratedMovies) {
+      updates.ratedMovies = [];
+    }
+    
+    // Apply the updates
+    await updateDoc(userRef, updates);
+    console.log(`Successfully cleared all ratings for user ${userId}`);
+    return true;
+  } catch (error) {
+    console.error('Error clearing ratings:', error);
+    throw new Error('Failed to clear ratings: ' + error.message);
+  }
+};
+

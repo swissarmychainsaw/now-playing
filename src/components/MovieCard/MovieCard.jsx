@@ -1,9 +1,8 @@
 import { useState, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FaStar, FaRegStar, FaHeart, FaRegHeart } from 'react-icons/fa';
+import { FaHeart, FaRegHeart, FaStar } from 'react-icons/fa';
 import { useRatings } from '../../context/RatingsContext';
 import { useMovieRating } from '../../hooks/useMovieRating';
-import Rating from '../Rating/Rating';
 
 /**
  * MovieCard Component
@@ -17,6 +16,7 @@ import Rating from '../Rating/Rating';
  * @param {boolean} [props.showTitle=true] - Whether to show the movie title
  * @param {boolean} [props.showYear=true] - Whether to show the release year
  * @param {string} [props.size='default'] - Size variant: 'default', 'small', or 'large'
+ * @param {function} [props.onRated] - Callback function when a rating is submitted
  * @returns {JSX.Element} Rendered MovieCard component
  */
 
@@ -25,17 +25,27 @@ const MovieCard = ({
   showRating = true, 
   showTitle = true, 
   showYear = true,
-  size = 'default' 
+  size = 'default',
+  onRated,
+  onRate,
+  onStatusChange,
 }) => {
   const navigate = useNavigate();
   const { getMovieRating } = useRatings();
-  const { toggleLike, isRating } = useMovieRating();
+  const { rateMovie, isRating } = useMovieRating();
+  
+  // Get the current rating for this movie from the context
+  const currentRating = getMovieRating(movie.id)?.rating || 0;
   
   const [isHovered, setIsHovered] = useState(false);
   const [imageLoaded, setImageLoaded] = useState(false);
+  const [localRating, setLocalRating] = useState(currentRating);
+  const [isRatingLocal, setIsRatingLocal] = useState(false);
   
-  // Get the current rating for this movie
-  const currentRating = getMovieRating(movie.id)?.rating || 0;
+  // Update local rating when currentRating changes from the context
+  useEffect(() => {
+    setLocalRating(currentRating);
+  }, [currentRating]);
   
   // Size variants
   const sizeClasses = {
@@ -78,22 +88,62 @@ const MovieCard = ({
     
     // Only navigate if the click wasn't on an interactive element
     if (!interactiveElements.some(el => el)) {
-      navigate(`/movie/${movie.id}`);
+      // Try to get the movie ID from different possible properties
+      const movieId = movie.id || movie.movieId;
+      if (!movieId) {
+        console.error('Cannot navigate: No valid movie ID found', movie);
+        return;
+      }
+      navigate(`/movie/${movieId}`);
     }
-  }, [movie.id, navigate]);
+  }, [movie, navigate]);
 
   // Handle like button click
-  const handleLikeClick = (e) => {
+  const handleLikeClick = async (e) => {
     e.stopPropagation();
-    toggleLike(movie.id, {
-      id: movie.id,
-      title: movie.title,
-      poster_path: movie.poster_path,
-      release_date: movie.release_date,
-      overview: movie.overview,
-      vote_average: movie.vote_average,
-    }, currentRating);
+    const movieId = movie.id || movie.movieId;
+    if (!movieId) {
+      console.error('Cannot rate: No valid movie ID found', movie);
+      return;
+    }
+    
+    setIsRatingLocal(true);
+    const newRating = currentRating >= 4 ? 0 : 5; // Toggle between 5 stars and 0
+    
+    try {
+      await rateMovie(movieId, newRating, {
+        id: movieId,
+        movieId: movieId,
+        title: movie.title,
+        poster_path: movie.poster_path,
+        release_date: movie.release_date,
+        overview: movie.overview,
+        vote_average: movie.vote_average,
+      });
+      
+      // Update local state
+      setLocalRating(newRating);
+      
+      // Call the appropriate callbacks
+      if (onRated) {
+        onRated();
+      }
+      
+      if (onRate) {
+        await onRate(movieId, newRating, movie);
+      }
+      
+      if (onStatusChange) {
+        await onStatusChange(movieId, newRating, movie);
+      }
+    } catch (error) {
+      console.error('Error updating like status:', error);
+    } finally {
+      setIsRatingLocal(false);
+    }
   };
+  
+
 
   // Get the poster URL with fallback
   const getPosterUrl = () => {
@@ -143,48 +193,36 @@ const MovieCard = ({
         
         {/* Like Button */}
         <button
-          className={`absolute top-2 right-2 p-2 bg-black/70 rounded-full text-white transition-opacity ${
+          className={`absolute top-2 right-2 p-2 rounded-full transition-opacity z-10 ${
             isHovered || currentRating >= 4 ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
-          } hover:bg-primary z-10`}
+          } ${
+            isRating || isRatingLocal 
+              ? 'bg-gray-400 cursor-wait' 
+              : 'bg-black/70 hover:bg-primary cursor-pointer'
+          }`}
           onClick={handleLikeClick}
-          disabled={isRating}
+          disabled={isRating || isRatingLocal}
           aria-label={currentRating >= 4 ? 'Remove like' : 'Like this movie'}
         >
-          {currentRating >= 4 ? (
+          {isRating || isRatingLocal ? (
+            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+          ) : currentRating >= 4 ? (
             <FaHeart className="text-red-500" />
           ) : (
             <FaRegHeart className="text-white" />
           )}
         </button>
         
-        {/* Hover Overlay */}
+        {/* Hover Overlay - Show only movie details */}
         <div 
           className={`absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent flex flex-col justify-end p-4 transition-opacity ${
             isHovered ? 'opacity-100' : 'opacity-0'
           }`}
         >
           <div className="mt-auto">
-            {showRating && (
-              <div className="mb-3">
-                <Rating 
-                  movieId={movie.id}
-                  movieData={{
-                    id: movie.id,
-                    title: movie.title,
-                    poster_path: movie.poster_path,
-                    release_date: movie.release_date,
-                    overview: movie.overview,
-                    vote_average: movie.vote_average,
-                  }}
-                  size={size === 'small' ? 'sm' : 'md'}
-                  showCount={true}
-                />
-              </div>
-            )}
-            
             {movie.vote_average > 0 && (
               <div className="flex items-center mb-2">
-                <FaStar className="text-yellow-400 mr-1" />
+                <span className="text-yellow-400 mr-1">★</span>
                 <span className="text-white text-sm font-medium">
                   {movie.vote_average.toFixed(1)}
                   {movie.vote_count > 0 && (
@@ -213,8 +251,8 @@ const MovieCard = ({
           </h3>
         )}
         
-        {(showYear || movie.vote_average > 0) && (
-          <div className="flex items-center justify-between mt-1">
+        <div className="mt-1">
+          <div className="flex items-center">
             {showYear && getReleaseYear() && (
               <p className={`text-gray-500 ${sizeConfig.year}`}>
                 {getReleaseYear()}
@@ -224,19 +262,215 @@ const MovieCard = ({
               </p>
             )}
             
-            {showRating && currentRating > 0 && (
-              <div className="flex items-center">
-                <FaStar className="text-yellow-400 mr-1 text-sm" />
-                <span className={`text-gray-700 ${sizeConfig.rating}`}>
-                  {currentRating.toFixed(1)}/5
-                </span>
+            {showRating && (
+              <div className="flex items-center ml-2">
+                {[1, 2, 3, 4, 5].map((star) => (
+                  <button
+                    key={star}
+                    onClick={async (e) => {
+                      e.stopPropagation();
+                      if (isRating || isRatingLocal) return;
+                      
+                      const movieId = movie.id || movie.movieId;
+                      if (!movieId) {
+                        console.error('Cannot rate: No valid movie ID found', movie);
+                        return;
+                      }
+                      
+                      setIsRatingLocal(true);
+                      const newRating = localRating === star ? 0 : star; // Toggle if clicking same star
+                      setLocalRating(newRating);
+                      
+                      try {
+                        await rateMovie(movieId, newRating, {
+                          id: movieId,
+                          movieId: movieId,
+                          title: movie.title,
+                          poster_path: movie.poster_path,
+                          release_date: movie.release_date,
+                          overview: movie.overview,
+                          vote_average: movie.vote_average,
+                        });
+                        
+                        // Call the appropriate callbacks
+                        if (onRated) {
+                          onRated();
+                        }
+                        
+                        if (onRate) {
+                          await onRate(movieId, newRating);
+                        }
+                      } catch (error) {
+                        console.error('Error rating movie:', error);
+                        // Revert local state on error
+                        setLocalRating(currentRating);
+                      } finally {
+                        setIsRatingLocal(false);
+                      }
+                    }}
+                    disabled={isRating || isRatingLocal}
+                    className={`p-0.5 ${isRating || isRatingLocal ? 'cursor-wait' : 'cursor-pointer'}`}
+                    aria-label={`Rate ${star} star`}
+                  >
+                    <FaStar 
+                      className={`${star <= localRating ? 'text-yellow-400' : 'text-gray-200'} ${isRating || isRatingLocal ? 'opacity-70' : ''}`}
+                      size={12}
+                    />
+                  </button>
+                ))}
               </div>
             )}
           </div>
-        )}
+          
+
+          
+          {showRating && (
+            <div className="mt-1">
+              <span className="text-xs text-gray-500">
+                {currentRating > 0 
+                  ? 'Your rating' 
+                  : 'Rate for Recommendations'}
+              </span>
+            </div>
+          )}
+          
+          {/* Action Buttons */}
+          <div className="flex justify-between mt-2 pt-2 border-t border-gray-100">
+            <button
+              onClick={async (e) => {
+                e.stopPropagation();
+                if (isRating || isRatingLocal) return;
+                
+                const movieId = movie.id || movie.movieId;
+                if (!movieId) {
+                  console.error('Cannot rate: No valid movie ID found', movie);
+                  return;
+                }
+                
+                setIsRatingLocal(true);
+                const newStatus = localRating === -1 ? 0 : -1; // Toggle not interested
+                setLocalRating(newStatus);
+                
+                try {
+                  await rateMovie(movieId, newStatus, {
+                    id: movieId,
+                    movieId: movieId,
+                    title: movie.title,
+                    poster_path: movie.poster_path,
+                    release_date: movie.release_date,
+                    overview: movie.overview,
+                    vote_average: movie.vote_average,
+                  });
+                  
+                  // Call the appropriate callbacks
+                  if (onRated) {
+                    onRated();
+                  }
+                  
+                  if (onStatusChange) {
+                    onStatusChange(movieId, 'not_interested');
+                  } else if (onRate) {
+                    onRate(movieId, newStatus, movie);
+                  }
+                } catch (error) {
+                  console.error('Error updating movie status:', error);
+                  setLocalRating(currentRating);
+                } finally {
+                  setIsRatingLocal(false);
+                }
+              }}
+              disabled={isRating || isRatingLocal}
+              className={`flex items-center text-xs px-2 py-1 rounded ${
+                localRating === -1 
+                  ? 'bg-red-100 text-red-700 border border-red-300' 
+                  : 'text-gray-500 hover:bg-gray-100 border border-gray-200'
+              } ${isRating || isRatingLocal ? 'opacity-50 cursor-wait' : 'cursor-pointer'}`}
+              aria-label={localRating === -1 ? 'Interested in this movie' : 'Not interested in this movie'}
+              title={localRating === -1 ? 'Click to undo' : 'Not interested'}
+            >
+              {localRating === -1 ? '✓ Not Interested' : 'Not Interested'}
+            </button>
+            
+            <button
+              onClick={async (e) => {
+                e.stopPropagation();
+                if (isRating || isRatingLocal) return;
+                
+                const movieId = movie.id || movie.movieId;
+                if (!movieId) {
+                  console.error('Cannot rate: No valid movie ID found', movie);
+                  return;
+                }
+                
+                setIsRatingLocal(true);
+                const newStatus = localRating === -2 ? 0 : -2; // Toggle want to watch
+                setLocalRating(newStatus);
+                
+                try {
+                  await rateMovie(movieId, newStatus, {
+                    id: movieId,
+                    movieId: movieId,
+                    title: movie.title,
+                    poster_path: movie.poster_path,
+                    release_date: movie.release_date,
+                    overview: movie.overview,
+                    vote_average: movie.vote_average,
+                  });
+                  
+                  // Call the appropriate callbacks
+                  if (onRated) {
+                    onRated();
+                  }
+                  
+                  if (onStatusChange) {
+                    onStatusChange(movieId, 'watchlist');
+                  } else if (onRate) {
+                    onRate(movieId, newStatus, movie);
+                  }
+                } catch (error) {
+                  console.error('Error updating movie status:', error);
+                  setLocalRating(currentRating);
+                } finally {
+                  setIsRatingLocal(false);
+                }
+              }}
+              disabled={isRating || isRatingLocal}
+              className={`flex items-center text-xs px-2 py-1 rounded ${
+                localRating === -2 
+                  ? 'bg-blue-100 text-blue-700 border border-blue-300' 
+                  : 'text-gray-500 hover:bg-gray-100 border border-gray-200'
+              } ${isRating || isRatingLocal ? 'opacity-50 cursor-wait' : 'cursor-pointer'}`}
+              aria-label={localRating === -2 ? 'Remove from watchlist' : 'Add to watchlist'}
+              title={localRating === -2 ? 'Click to remove from watchlist' : 'Add to watchlist'}
+            >
+              {localRating === -2 ? '✓ Watchlist' : 'Watchlist'}
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );
+};
+
+import PropTypes from 'prop-types';
+
+MovieCard.propTypes = {
+  movie: PropTypes.shape({
+    id: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
+    title: PropTypes.string.isRequired,
+    poster_path: PropTypes.string,
+    release_date: PropTypes.string,
+    overview: PropTypes.string,
+    vote_average: PropTypes.number,
+    is_oscar_winner: PropTypes.bool,
+  }).isRequired,
+  showRating: PropTypes.bool,
+  showTitle: PropTypes.bool,
+  showYear: PropTypes.bool,
+  size: PropTypes.oneOf(['small', 'default', 'large']),
+  onRated: PropTypes.func,
+  onRate: PropTypes.func,
+  onStatusChange: PropTypes.func
 };
 
 export default MovieCard;

@@ -1,8 +1,9 @@
 import { useState, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FaHeart, FaRegHeart, FaStar } from 'react-icons/fa';
+import { FaHeart, FaRegHeart, FaStar, FaFilm } from 'react-icons/fa';
 import { useRatings } from '../../context/RatingsContext';
 import { useMovieRating } from '../../hooks/useMovieRating';
+import { Link } from 'react-router-dom';
 
 /**
  * MovieCard Component
@@ -41,11 +42,42 @@ const MovieCard = ({
   const [imageLoaded, setImageLoaded] = useState(false);
   const [localRating, setLocalRating] = useState(currentRating);
   const [isRatingLocal, setIsRatingLocal] = useState(false);
+  const [director, setDirector] = useState(null);
   
   // Update local rating when currentRating changes from the context
   useEffect(() => {
     setLocalRating(currentRating);
   }, [currentRating]);
+
+  // Fetch director information when movie changes
+  useEffect(() => {
+    const fetchDirector = async () => {
+      try {
+        if (movie.credits?.crew) {
+          const director = movie.credits.crew.find(
+            member => member.job === 'Director' || member.department === 'Directing'
+          );
+          setDirector(director || null);
+        } else if (movie.id) {
+          // If credits.crew isn't available, fetch it
+          const response = await fetch(
+            `https://api.themoviedb.org/3/movie/${movie.id}/credits?api_key=${import.meta.env.VITE_TMDB_API_KEY}`
+          );
+          if (response.ok) {
+            const credits = await response.json();
+            const director = credits.crew?.find(
+              member => member.job === 'Director' || member.department === 'Directing'
+            );
+            setDirector(director || null);
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching director:', error);
+      }
+    };
+
+    fetchDirector();
+  }, [movie]);
   
   // Size variants
   const sizeClasses = {
@@ -220,18 +252,38 @@ const MovieCard = ({
           }`}
         >
           <div className="mt-auto">
+            <h3 className="font-medium text-white text-sm truncate">
+              {movie.title}
+            </h3>
+            {director && (
+              <div className="flex items-center text-xs text-gray-400 mt-1">
+                <FaFilm className="mr-1 text-blue-400" size={10} />
+                <Link 
+                  to={`/director/${director.id}`}
+                  className="hover:text-blue-400 transition-colors truncate"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {director.name}
+                </Link>
+              </div>
+            )}
             {movie.vote_average > 0 && (
-              <div className="flex items-center mb-2">
+              <div className="flex items-center mt-1">
                 <span className="text-yellow-400 mr-1">★</span>
-                <span className="text-white text-sm font-medium">
+                <span className="text-white text-xs">
                   {movie.vote_average.toFixed(1)}
                   {movie.vote_count > 0 && (
-                    <span className="text-gray-300 ml-1">
+                    <span className="text-gray-400 ml-1">
                       ({movie.vote_count.toLocaleString()})
                     </span>
                   )}
                 </span>
               </div>
+            )}
+            {showYear && movie.release_date && !director && (
+              <p className="text-gray-400 text-xs mt-1">
+                {new Date(movie.release_date).getFullYear()}
+              </p>
             )}
             
             {movie.overview && (

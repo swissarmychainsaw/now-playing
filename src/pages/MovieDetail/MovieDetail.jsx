@@ -3,7 +3,8 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useRatings } from '../../context/RatingsContext';
 import { useMovieRating } from '../../hooks/useMovieRating';
 import { toast } from 'react-hot-toast';
-import { FaStar } from 'react-icons/fa';
+import { FaStar, FaFilm } from 'react-icons/fa';
+import { Link } from 'react-router-dom';
 
 const MovieDetail = () => {
   const { id } = useParams();
@@ -13,6 +14,7 @@ const MovieDetail = () => {
   const [showTrailer, setShowTrailer] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [director, setDirector] = useState(null);
   const { getMovieRating, loading: ratingsLoading } = useRatings();
   const { rateMovie, isRating } = useMovieRating();
   
@@ -192,6 +194,11 @@ const MovieDetail = () => {
           display_priority: p.display_priority || 999
         }));
         
+        // Get director from crew
+        const director = data.credits?.crew?.find(
+          member => member.job === 'Director' || member.department === 'Directing'
+        ) || null;
+
         // Format the movie data to match our component's expectations
         const formattedMovie = {
           id: data.id.toString(),
@@ -205,11 +212,12 @@ const MovieDetail = () => {
           genres: data.genres || [],
           imdb_id: data.imdb_id, // Include IMDb ID for OMDb fallback
           credits: {
-            cast: data.credits?.cast?.slice(0, 5).map(actor => ({
+            cast: data.credits?.cast?.slice(0, 4).map(actor => ({
               id: actor.id,
               name: actor.name,
               character: actor.character,
-              profile_path: actor.profile_path
+              profile_path: actor.profile_path,
+              isDirector: false
             })) || []
           },
           providers: providers.sort((a, b) => {
@@ -220,6 +228,7 @@ const MovieDetail = () => {
         };
         
         setMovie(formattedMovie);
+        setDirector(director);
         setError(null);
         
         // Fetch movie videos with fallback to OMDb
@@ -275,79 +284,33 @@ const MovieDetail = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-900 text-white pt-16">
-      {/* Backdrop and Header */}
-      <div className="relative pt-24 pb-8 w-full bg-gray-800 -mt-16">
-        <div className="absolute inset-0 overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-b from-gray-900 to-gray-800">
-            {movie.backdrop_path && (
-              <img
-                src={`https://image.tmdb.org/t/p/original${movie.backdrop_path}`}
-                alt={movie.title}
-                className="w-full h-full object-cover opacity-30"
-                onError={(e) => {
-                  e.target.style.display = 'none';
-                }}
-              />
-            )}
-          </div>
-          {/* Gradient Overlay */}
-          <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/50 to-black/90"></div>
-        </div>
-        
-        {/* Movie Header */}
-        <div className="container mx-auto px-4 relative z-10">
-          <div className="flex items-end gap-6 pt-8">
-            <div className="w-32 h-48 md:w-40 md:h-60 lg:w-48 lg:h-72 flex-shrink-0 rounded-lg overflow-hidden shadow-2xl border-2 border-white/10 bg-gray-800">
-              {movie.poster_path ? (
+    <div className="min-h-screen bg-gray-900 text-white">
+      <div className="pt-16">
+        {/* Backdrop and Header */}
+        <div className="relative pt-24 pb-8 w-full bg-gray-800 -mt-16">
+          <div className="absolute inset-0 overflow-hidden">
+            <div className="absolute inset-0 bg-gradient-to-b from-gray-900 to-gray-800">
+              {movie.backdrop_path && (
                 <img
-                  src={`https://image.tmdb.org/t/p/w500${movie.poster_path}`}
-                  alt={`${movie.title} Poster`}
-                  className="w-full h-full object-cover"
+                  src={`https://image.tmdb.org/t/p/original${movie.backdrop_path}`}
+                  alt={movie.title}
+                  className="w-full h-full object-cover opacity-30"
                   onError={(e) => {
-                    e.target.style.display = 'none';
-                    e.target.nextElementSibling.style.display = 'flex';
+                    if (e.target) e.target.style.display = 'none';
                   }}
                 />
-              ) : null}
-              <div className={`w-full h-full ${movie.poster_path ? 'hidden' : 'flex'} items-center justify-center text-gray-400`}>
-                <svg className="w-16 h-16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                </svg>
-              </div>
-            </div>
-            <div className="pb-2">
-              <h1 className="text-2xl md:text-3xl font-bold text-white mb-1">
-                {movie.title}
-                <span className="font-normal text-gray-300 ml-2">
-                  ({new Date(movie.release_date).getFullYear()})
-                </span>
-              </h1>
-              <div className="flex items-center gap-3 text-sm text-gray-300 mb-3">
-                <span>{movie.runtime} min</span>
-                <span>•</span>
-                <span>{movie.certification || 'NR'}</span>
-                <span>•</span>
-                <span>{movie.vote_average ? `${Math.round(movie.vote_average * 10)}%` : 'N/A'}</span>
-              </div>
-              <div className="flex flex-wrap gap-2 mb-3">
-                {movie.genres?.slice(0, 3).map(genre => (
-                  <span key={genre.id} className="px-2 py-1 bg-blue-600/30 text-blue-100 text-xs rounded-full border border-blue-500/30">
-                    {genre.name}
-                  </span>
-                ))}
-              </div>
+              )}
             </div>
           </div>
         </div>
-      </div>
-
+      
       {/* Main Content */}
       <div className="container mx-auto px-4 py-8 -mt-16 relative z-20">
         <div className="max-w-7xl mx-auto">
           <div className="flex flex-col lg:flex-row gap-8">
             {/* Left Column */}
             <div className="lg:w-2/3">
+              <div className="bg-gray-900/80 backdrop-blur-sm rounded-xl p-6 border border-gray-800/50 shadow-xl">
               {/* Overview */}
               <div className="mb-8">
                 <h2 className="text-xl font-bold mb-3 text-white flex items-center">
@@ -359,60 +322,113 @@ const MovieDetail = () => {
                 </p>
               </div>
 
-              {/* Cast */}
-              {movie.credits?.cast?.length > 0 && (
-                <div className="mb-8">
-                  <h2 className="text-xl font-bold mb-4 text-white flex items-center">
-                    <span className="w-8 h-0.5 bg-blue-500 mr-3"></span>
-                    Top Cast
-                  </h2>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-                    {movie.credits.cast.slice(0, 5).map(person => (
-                      <div key={person.id} className="bg-gray-800/50 rounded-lg overflow-hidden border border-gray-700/50">
-                        <div className="w-full aspect-[2/3] bg-gray-700 relative">
+              {/* Cast & Director */}
+              <div className="mb-8">
+                <h2 className="text-xl font-bold mb-4 text-white flex items-center">
+                  <span className="w-8 h-0.5 bg-blue-500 mr-3"></span>
+                  Cast & Crew
+                </h2>
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                  {/* Director Card */}
+                  {director && (
+                    <div className="bg-gray-800/50 rounded-lg overflow-hidden border border-blue-500/30">
+                      <div className="w-full aspect-[2/3] bg-blue-900/20 relative">
+                        {director.profile_path ? (
                           <img
-                            src={person.profile_path ? `https://image.tmdb.org/t/p/w200${person.profile_path}` : ''}
-                            alt={person.name}
+                            src={`https://image.tmdb.org/t/p/w200${director.profile_path}`}
+                            alt={director.name}
                             className="w-full h-full object-cover"
                             onError={(e) => {
-                              // If image fails to load, replace with fallback UI
-                              e.target.style.display = 'none';
-                              e.target.nextElementSibling.style.display = 'flex';
+                              if (e?.target) {
+                                e.target.style.display = 'none';
+                                if (e.target.nextElementSibling) {
+                                  e.target.nextElementSibling.style.display = 'flex';
+                                }
+                              }
                             }}
                           />
-                          <div className="w-full h-full hidden items-center justify-center text-gray-400 bg-gray-800">
-                            <svg className="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                            </svg>
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-blue-300">
+                            <FaFilm className="w-12 h-12" />
                           </div>
-                        </div>
-                        <div className="p-3">
-                          <h3 className="font-medium text-white truncate">{person.name}</h3>
-                          <p className="text-sm text-gray-400 truncate">{person.character}</p>
+                        )}
+                        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-2">
+                          <span className="text-xs font-medium text-blue-300">Director</span>
                         </div>
                       </div>
-                    ))}
-                  </div>
+                      <div className="p-3">
+                        <Link 
+                          to={`/director/${director.id}`}
+                          className="font-medium text-white hover:text-blue-400 transition-colors block truncate"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          {director.name}
+                        </Link>
+                        <p className="text-sm text-gray-400">Director</p>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* Cast Cards */}
+                  {movie.cast && movie.cast.length > 0 && (
+                    <div className="mt-8">
+                      <h2 className="text-xl font-bold mb-4">Cast</h2>
+                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+                        {movie.cast.slice(0, 6).map((person) => (
+                          <div key={person.id} className="bg-gray-800/50 rounded-lg overflow-hidden border border-gray-700/50 hover:border-blue-500/50 transition-colors">
+                            <div className="relative aspect-[2/3] bg-gray-900">
+                              {person.profile_path ? (
+                                <img
+                                  src={`https://image.tmdb.org/t/p/w500${person.profile_path}`}
+                                  alt={person.name}
+                                  className="w-full h-full object-cover"
+                                  onError={(e) => {
+                                    if (e?.target) {
+                                      e.target.style.display = 'none';
+                                      if (e.target.nextElementSibling) {
+                                        e.target.nextElementSibling.style.display = 'flex';
+                                      }
+                                    }
+                                  }}
+                                />
+                              ) : null}
+                              <div className="w-full h-full hidden items-center justify-center text-gray-400 bg-gray-800">
+                                <svg className="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                                </svg>
+                              </div>
+                            </div>
+                            <div className="p-3">
+                              <h3 className="font-medium text-white truncate">{person.name}</h3>
+                              <p className="text-sm text-gray-400 truncate">{person.character}</p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
-              )}
+                </div>
+              </div>
             </div>
-
-            {/* Right Column */}
-            <div className="lg:w-1/3">
-              <div className="space-y-4">
-                {/* Rate this Movie */}
-                <div className="bg-gray-800/50 rounded-xl p-4 border border-gray-700/50">
-                  <h2 className="text-lg font-bold mb-3 text-white flex items-center">
-                    <span className="w-6 h-0.5 bg-blue-500 mr-2"></span>
-                    Your Rating
-                  </h2>
-                  <div className="flex flex-col items-center">
-                    {ratingsLoading ? (
-                      <div className="flex justify-center py-2">
-                        <div className="animate-pulse flex space-x-1">
-                          {[1, 2, 3, 4, 5].map((i) => (
-                            <div key={i} className="w-6 h-6 bg-gray-700 rounded"></div>
-                          ))}
+          </div>
+          
+          {/* Right Column */}
+          <div className="lg:w-1/3">
+            <div className="space-y-4">
+              {/* Rate this Movie */}
+              <div className="bg-gray-800/50 rounded-xl p-4 border border-gray-700/50">
+                <h2 className="text-lg font-bold mb-3 text-white flex items-center">
+                  <span className="w-6 h-0.5 bg-blue-500 mr-2"></span>
+                  Your Rating
+                </h2>
+                <div className="flex flex-col items-center">
+                  {ratingsLoading ? (
+                    <div className="flex justify-center py-2">
+                      <div className="animate-pulse flex space-x-1">
+                        {[1, 2, 3, 4, 5].map((i) => (
+                          <div key={i} className="w-6 h-6 bg-gray-700 rounded"></div>
+                        ))}
                         </div>
                       </div>
                     ) : (
@@ -595,9 +611,12 @@ const MovieDetail = () => {
                                       alt={provider.provider_name}
                                       className="w-full h-full object-contain p-1 bg-white rounded-md"
                                       onError={(e) => {
-                                        e.target.style.display = 'none';
-                                        const fallback = e.target.nextElementSibling;
-                                        if (fallback) fallback.style.display = 'flex';
+                                        if (e?.target) {
+                                          e.target.style.display = 'none';
+                                          if (e.target.nextElementSibling) {
+                                            e.target.nextElementSibling.style.display = 'flex';
+                                          }
+                                        }
                                       }}
                                     />
                                     <div className="hidden absolute inset-0 items-center justify-center bg-gradient-to-br from-blue-600 to-blue-800 rounded">
@@ -630,105 +649,6 @@ const MovieDetail = () => {
                     </div>
                   </div>
                 )}
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-
-  return (
-    <div className="min-h-screen bg-gray-900 text-white pt-16">
-      {/* Backdrop and Header */}
-      <div className="relative pb-8 w-full bg-gray-800 -mt-16">
-        <div className="absolute inset-0 overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-b from-gray-900 to-gray-800">
-            {movie.backdrop_path && (
-              <img
-                src={`https://image.tmdb.org/t/p/original${movie.backdrop_path}`}
-                alt={movie.title}
-                className="w-full h-full object-cover opacity-30"
-                onError={(e) => {
-                  e.target.style.display = 'none';
-                }}
-              />
-            )}
-          </div>
-          {/* Gradient Overlay */}
-          <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/50 to-black/90"></div>
-        </div>
-        
-        {/* Movie Header */}
-        <div className="container mx-auto px-4 relative z-10">
-          {trailerUrl && (
-            <div className="absolute -top-20 right-4 md:right-8">
-              <button
-                onClick={toggleTrailer}
-                className="flex items-center px-4 py-2 bg-red-600 text-white rounded-full hover:bg-red-700 transition-colors shadow-lg"
-              >
-                <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
-                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" />
-                </svg>
-                Watch Trailer
-              </button>
-            </div>
-          )}
-          
-          {/* Rest of the movie details */}
-          <div className="flex items-end gap-6">
-            <div className="w-32 h-48 md:w-40 md:h-60 lg:w-48 lg:h-72 flex-shrink-0 rounded-lg overflow-hidden shadow-2xl transform -translate-y-12 border-2 border-white/10 bg-gray-800">
-              {movie.poster_path ? (
-                <img
-                  src={`https://image.tmdb.org/t/p/w500${movie.poster_path}`}
-                  alt={`${movie.title} poster`}
-                  className="w-full h-full object-cover"
-                  onError={(e) => {
-                    e.target.src = '/placeholder-movie.png';
-                  }}
-                />
-              ) : (
-                <div className="w-full h-full bg-gray-700 flex items-center justify-center">
-                  <span className="text-gray-400">No poster</span>
-                </div>
-              )}
-            </div>
-            
-            <div className="flex-1">
-              <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold mb-2">{movie.title}</h1>
-              <div className="flex items-center flex-wrap gap-2 text-sm text-gray-300 mb-4">
-                <span>{new Date(movie.release_date).getFullYear()}</span>
-                {movie.runtime && <span>• {Math.floor(movie.runtime / 60)}h {movie.runtime % 60}m</span>}
-                {movie.certification && <span>• {movie.certification}</span>}
-                <span>• {movie.vote_average.toFixed(1)}/10</span>
-              </div>
-              
-              <div className="flex flex-wrap gap-2 mb-4">
-                {movie.genres.map(genre => (
-                  <span key={genre.id} className="px-2 py-1 bg-blue-600 text-white text-xs rounded-full">
-                    {genre.name}
-                  </span>
-                ))}
-              </div>
-              
-              <p className="text-gray-300 mb-6">{movie.overview}</p>
-              
-              <div className="flex items-center gap-4">
-                <button className="flex items-center justify-center w-12 h-12 rounded-full bg-blue-600 hover:bg-blue-700 text-white">
-                  <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
-                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" />
-                  </svg>
-                </button>
-                <button className="flex items-center justify-center w-12 h-12 rounded-full bg-gray-700 hover:bg-gray-600 text-white">
-                  <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M5 4a2 2 0 012-2h6a2 2 0 012 2v14l-5-2.5L5 18V4z" />
-                  </svg>
-                </button>
-                <button className="flex items-center justify-center w-12 h-12 rounded-full bg-gray-700 hover:bg-gray-600 text-white">
-                  <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
-                    <path fillRule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clipRule="evenodd" />
-                  </svg>
-                </button>
               </div>
             </div>
           </div>

@@ -9,6 +9,7 @@ import MovieDetail from './pages/MovieDetail/MovieDetail';
 import NotFound from './pages/NotFound/NotFound';
 import RatingsPage from './pages/RatingsPage/RatingsPage';
 import Login from './pages/Login/Login';
+import DirectorPage from './pages/DirectorPage/DirectorPage';
 import { ProtectedRoute } from './components/Auth/ProtectedRoute';
 
 function App() {
@@ -51,15 +52,19 @@ function App() {
                 </ErrorBoundary>
               } />
               
-              <Route path="/404" element={
+              <Route path="/director/:directorId" element={
                 <ErrorBoundary>
-                  <NotFound />
+                  <ProtectedRoute>
+                    <DirectorPage />
+                  </ProtectedRoute>
                 </ErrorBoundary>
               } />
               
-              {/* Redirect all other routes to home */}
+              {/* 404 Route */}
               <Route path="*" element={
-                <Navigate to="/404" replace />
+                <ErrorBoundary>
+                  <NotFound />
+                </ErrorBoundary>
               } />
             </Routes>
           </main>

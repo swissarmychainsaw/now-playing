@@ -1083,4 +1083,52 @@ Use it in Tailwind:
 
 ---
 
+🔧 Step-by-Step Deployment Guide
+1. Login to Firebase
 
+firebase login
+
+2. Initialize Firebase in your Vite project
+
+firebase init
+
+    Choose Hosting (and optionally Firestore/Functions if you use them)
+
+    Select your Firebase project
+
+    When asked for the public directory, enter:
+
+    dist
+
+    Configure as a single-page app? Yes
+
+    Overwrite index.html? No
+
+3. Build your Vite app
+
+npm run build
+
+This generates a dist/ folder containing your production build.
+4. Deploy to Firebase
+
+firebase deploy
+
+📁 Sample firebase.json for Vite
+
+{
+  "hosting": {
+    "public": "dist",
+    "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
+    "rewrites": [
+      { "source": "**", "destination": "/index.html" }
+    ]
+  }
+}
+
+⚠️ Additional Notes
+
+    If you're using React Router, the rewrite rule ensures routing works correctly.
+
+    If using Firebase Auth, make sure to whitelist localhost and your domain under Auth settings.
+
+    If you need to use environment variables, prefix them with VITE_ in your .env file and use import.meta.env.VITE_YOUR_KEY.

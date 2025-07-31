@@ -90,6 +90,44 @@ AI Prompt Example: Create a React component called MovieCard styled with Tailw
 * Includes Watch Movie and Watch Trailer buttons
 * Has a hover effect and rounded corners
 * Calls onSelect(movie) when clicked
+Certainly. Here's a clear and professional **product description** followed by a **user case** for that feature:
+
+---
+
+### **Feature: Dynamic Movie Card Replacement After Rating or Action**
+
+**Description:**
+When a user interacts with a movie card by selecting any of the following actions:
+
+* A star rating (1–5 stars)
+* “Not interested”
+* “Watchlist”
+
+…the card will automatically refresh to display a new recommended movie. This creates a seamless flow of movie discovery and encourages continued engagement by eliminating the need for manual refresh or navigation.
+
+**Purpose:**
+To keep users in a fast-paced, low-friction recommendation loop where they can efficiently explore, rate, and curate their movie preferences without interruption.
+
+---
+
+### **User Case Example:**
+
+**User:** Maya, a new user browsing recommendations on the “Now Playing” homepage.
+
+**Action Flow:**
+
+1. Maya sees five movie cards recommended to her.
+2. She recognizes one title she doesn’t like and clicks **“Not Interested”**.
+3. Instantly, the card reloads with a new movie recommendation.
+4. She gives the new movie **4 stars** — the card reloads again with another fresh title.
+5. She clicks **“Watchlist”** on the next card to save it for later — another card appears in its place.
+
+**Outcome:**
+In less than a minute, Maya has interacted with five different movies, given two ratings, saved one to her watchlist, and removed two she didn’t care for — all without leaving the page or refreshing manually.
+
+---
+
+Let me know if you'd like this adapted for developer documentation or UI copy.
 
 
 Trailer Enhancement Implementation Documentation
@@ -260,6 +298,38 @@ Performance Metrics
 * Error rates
 This documentation provides a comprehensive overview of the trailer enhancement implementation. The system is designed to be robust, maintainable, and provide the best possible user experience while efficiently managing API resources.
 
+User Ratings:
+Summary of Changes
+1. Authentication System:
+    * Created a new AuthContext to manage user authentication state
+    * Implemented Google Sign-In and Email/Password authentication
+    * Set up user profiles in Firestore
+2. Ratings System:
+    * Created a RatingsContext to manage movie ratings state
+    * Implemented real-time updates using Firestore listeners
+    * Added support for 5-star ratings and like/dislike functionality
+3. UI Components:
+    * Updated  MovieCard  with hover effects and rating controls
+    * Created a responsive  Rating  component with star-based input
+    * Built a dedicated  RatingsPage  to view and manage rated movies
+4. Backend Integration:
+    * Set up Firestore security rules to protect user data
+    * Created indexes for optimized queries
+    * Implemented error handling and loading states
+5. Project Structure:
+    * Organized code into logical directories (components, hooks, context, services)
+    * Added comprehensive documentation in README.md
+    * Set up environment configuration
+6. Dependencies:
+    * Updated all dependencies to their latest versions
+    * Added necessary Firebase and UI libraries
+The application now provides a seamless experience for users to:
+* Sign in with Google or email/password
+* Rate movies on a 5-star scale
+* Like/dislike movies with a single click
+* View their ratings in real-time
+* Browse and manage their movie ratings
+The code is well-documented, follows React best practices, and is ready for production deployment. The application is fully responsive and works across all device sizes.
 
 
 
@@ -274,6 +344,29 @@ AI Prompt Example: Assemble a React component called LandingPage using the fol
 * SearchBox in the center
 * Below that, RecommendationTabs
 * Below that, a responsive grid showing 5 MovieCard components On page load, fetch and show a list of recommended movies. Show a loading spinner during fetch. When a MovieCard is clicked, navigate to /movie/:id. If a user searches for a movie, redirect to the matching detail page or show close results.
+
+1. Consistent Star Icons:
+    * Replaced the star character (★) with the FaStar icon from react-icons/fa in the MovieDetail component to match the MovieCard
+    * Ensured both components use the same color scheme (yellow for rated stars, gray for unrated)
+2. Improved Rating Logic:
+    * Added proper async/await handling for rating updates
+    * Added error handling with toast notifications
+    * Disabled buttons and showed loading states during rating operations
+3. UI/UX Improvements:
+    * Made the star buttons more responsive with proper hover and active states
+    * Updated the "Remove rating" button to match the style of the MovieCard
+    * Added proper disabled states for both star buttons and the remove rating button
+4. State Management:
+    * Both components now properly use the same  useRatings  context to get the current rating
+    * Rating updates are immediately reflected in both components through the shared context
+The rating system should now work seamlessly between both components. When you rate a movie in either the MovieCard or MovieDetail view, the change will be immediately reflected in both places due to the shared RatingsContext.
+To test:
+1. Rate a movie in the MovieCard view
+2. Click to view the MovieDetail for that movie - the same rating should be shown
+3. Change the rating in the MovieDetail view
+4. Go back to the MovieCard view - the updated rating should be reflected
+ 
+
 
 Recommendation Tabs:
 Movie Recommendation System - Implementation Summary
@@ -873,5 +966,121 @@ Use it in Tailwind:
 ```
 
 
+## Core Requirements FEATURE: Watch Party
+1. Create / Join Watch Party
+
+    Users can start a Watch Party and invite up to 4 others.
+
+    Invitations can be sent via:
+
+        Google Contacts (OAuth-enabled)
+
+        Email or username
+
+        Invite link (24-hour expiration)
+
+2. Friend Discovery & Privacy
+
+    Show Google contacts who use the app (if visibility is enabled).
+
+    Toggle: Visible to Friends (default: off).
+
+    Profile data includes display name and optional avatar.
+
+3. Shared Movie Recommendations
+
+    Aggregates ratings from all Watch Party participants.
+
+    Filters out any movie flagged “Not Interested” by a member.
+
+    Ranks movies by group preference score using:
+
+        Genre overlap
+
+        Actor/director affinity
+
+        Historical ratings
+
+4. Party Interaction UI
+
+    Lobby shows all group members and mood tags (e.g., “funny,” “short”).
+
+    Scrollable shared recommendation list.
+
+    Users can thumbs-up/down each movie to refine suggestions.
+
+    Optionally show average star rating for movies seen by all.
+
+5. Session & Privacy Controls
+
+    Watch Parties expire after 1 hour unless saved as a Recurring Crew.
+
+    All party data is private to members.
+
+    Ratings are not exposed unless the user has opted in.
+
+🧪 User Stories
+
+    As a user, I want to start a Watch Party so I can get recommendations tailored to a group.
+
+    As a user, I want to invite friends via Google Contacts or email easily.
+
+    As a user, I want to hide my profile unless I choose to be discoverable.
+
+    As a user, I want to collaboratively rate and react to suggestions in real-time.
+
+    As a user, I want the Watch Party to recommend movies we all might enjoy based on our ratings.
+
+    As a user, I want to filter group recommendations by genre, runtime, or mood.
+
+
+---
+
+## 🎬 The Director
+
+### Overview
+
+**The Director** feature enhances the recommendation engine and UI by treating a movie’s director as a key dimension of user taste — similar to how actors or genres are used. Since directors often have distinct styles and recurring themes, they serve as a **natural Venn diagram anchor** for surfacing similar or recommended titles.
+
+---
+
+### ✅ RFEATURE Requirements "The Director"
+
+#### 1. Display Director Info
+
+* Show the **director’s name prominently** on the Movie Detail page.
+* Replace the **fifth featured actor** slot with the **director**.
+* Link the director’s name to a list of other movies they directed.
+
+#### 2. Recommendation Engine Integration
+
+* Factor director preferences into personalized and Watch Party recommendations.
+* Boost movies by directors a user has consistently rated highly.
+* Penalize (or exclude) directors a user has marked as “Not Interested.”
+
+#### 3. UI Placement
+
+* On the Movie Detail page:
+
+  * Above or beside the top-billed cast
+  * Styled as: `Director: Christopher Nolan`
+  * Replace actor #5 in the recommendation spokes with the director
+
+#### 4. Optional Enhancements
+
+* Allow users to **follow** favorite directors
+* Add a **“More by this Director”** carousel to the detail page
+* Show common collaborators (frequent actors, writers)
+
+---
+
+### 🧪 User Stories
+
+* *As a user, I want to see who directed a movie so I can better understand its style and quality.*
+* *As a user, I want to discover other movies by directors I like.*
+* *As a user, I want recommendations to consider my history with certain directors.*
+* *As a user, I want the director to appear in the top information along with actors and genre.*
+
+---
 
 

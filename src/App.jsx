@@ -1,7 +1,6 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { AuthProvider } from './context/AuthContext';
-import { UserProvider } from './context/UserContext';
 import { RatingsProvider } from './context/RatingsContext';
 import ErrorBoundary from './components/ErrorBoundary/ErrorBoundary';
 import Header from './components/Header/Header';
@@ -15,55 +14,57 @@ import { ProtectedRoute } from './components/Auth/ProtectedRoute';
 function App() {
   return (
     <AuthProvider>
-      <UserProvider>
-        <RatingsProvider>
-      <div className="min-h-screen bg-gray-50 flex flex-col">
-        <Header />
-        <Toaster position="top-right" />
-        <main className="flex-grow">
-          <Routes>
-            <Route path="/login" element={
-              <ErrorBoundary>
-                <Login />
-              </ErrorBoundary>
-            } />
-            
-            {/* Protected Routes */}
-            <Route path="/" element={
-              <ErrorBoundary>
-                <ProtectedRoute>
-                  <Home />
-                </ProtectedRoute>
-              </ErrorBoundary>
-            } />
-            
-            <Route path="/movie/:id" element={
-              <ErrorBoundary>
-                <ProtectedRoute>
-                  <MovieDetail />
-                </ProtectedRoute>
-              </ErrorBoundary>
-            } />
-            
-            <Route path="/my-ratings" element={
-              <ErrorBoundary>
-                <ProtectedRoute>
-                  <RatingsPage />
-                </ProtectedRoute>
-              </ErrorBoundary>
-            } />
-            
-            {/* Redirect all other routes to home */}
-            <Route path="*" element={
-              <ErrorBoundary>
-                <Navigate to="/" replace />
-              </ErrorBoundary>
-            } />
-          </Routes>
-        </main>
-      </div>
-        </RatingsProvider>
-      </UserProvider>
+      <RatingsProvider>
+        <div className="min-h-screen bg-gray-50 flex flex-col">
+          <Header />
+          <Toaster position="top-right" />
+          <main className="flex-grow">
+            <Routes>
+              <Route path="/login" element={
+                <ErrorBoundary>
+                  <Login />
+                </ErrorBoundary>
+              } />
+              
+              {/* Protected Routes */}
+              <Route path="/" element={
+                <ErrorBoundary>
+                  <ProtectedRoute>
+                    <Home />
+                  </ProtectedRoute>
+                </ErrorBoundary>
+              } />
+              
+              <Route path="/movie/:id" element={
+                <ErrorBoundary>
+                  <ProtectedRoute>
+                    <MovieDetail />
+                  </ProtectedRoute>
+                </ErrorBoundary>
+              } />
+              
+              <Route path="/my-ratings" element={
+                <ErrorBoundary>
+                  <ProtectedRoute>
+                    <RatingsPage />
+                  </ProtectedRoute>
+                </ErrorBoundary>
+              } />
+              
+              <Route path="/404" element={
+                <ErrorBoundary>
+                  <NotFound />
+                </ErrorBoundary>
+              } />
+              
+              {/* Redirect all other routes to home */}
+              <Route path="*" element={
+                <Navigate to="/404" replace />
+              } />
+            </Routes>
+          </main>
+        </div>
+      </RatingsProvider>
     </AuthProvider>
   );
 }

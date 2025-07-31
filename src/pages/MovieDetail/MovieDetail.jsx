@@ -1,5 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useRatings } from '../../context/RatingsContext';
+import { useMovieRating } from '../../hooks/useMovieRating';
+import { toast } from 'react-hot-toast';
+import { FaStar } from 'react-icons/fa';
 
 const MovieDetail = () => {
   const { id } = useParams();
@@ -9,7 +13,21 @@ const MovieDetail = () => {
   const [showTrailer, setShowTrailer] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [userRating, setUserRating] = useState(null);
+  const { getMovieRating, loading: ratingsLoading } = useRatings();
+  const { rateMovie, isRating } = useMovieRating();
+  
+  // Get the current rating for this movie from the context
+  const [currentRating, setCurrentRating] = useState(0);
+  
+  // Update currentRating when movie or ratings change
+  useEffect(() => {
+    if (movie?.id) {
+      const rating = getMovieRating(movie.id)?.rating || 0;
+      setCurrentRating(rating);
+    } else {
+      setCurrentRating(0);
+    }
+  }, [movie, getMovieRating]);
 
   // Function to fetch trailer from OMDb
   const fetchOMDbTrailer = async (imdbId, title, year) => {
@@ -386,31 +404,84 @@ const MovieDetail = () => {
                 <div className="bg-gray-800/50 rounded-xl p-4 border border-gray-700/50">
                   <h2 className="text-lg font-bold mb-3 text-white flex items-center">
                     <span className="w-6 h-0.5 bg-blue-500 mr-2"></span>
-                    Rate this Movie
+                    Your Rating
                   </h2>
                   <div className="flex flex-col items-center">
-                    <div className="flex gap-0.5 mb-2">
-                      {[1, 2, 3, 4, 5].map((star) => (
-                        <button
-                          key={star}
-                          onClick={() => setUserRating(star)}
-                          className={`text-2xl transition-transform hover:scale-110 ${
-                            star <= (userRating || 0) 
-                              ? 'text-yellow-400' 
-                              : 'text-gray-600 hover:text-yellow-400'
-                          }`}
-                        >
-                          ★
-                        </button>
-                      ))}
-                    </div>
-                    <p className="text-xs text-gray-400 text-center">
-                      Your ratings improve our recommendations!
-                    </p>
-                    {userRating && (
-                      <p className="text-green-400 text-sm font-medium mt-1">
-                        You rated: {userRating} {userRating === 1 ? 'star' : 'stars'}
-                      </p>
+                    {ratingsLoading ? (
+                      <div className="flex justify-center py-2">
+                        <div className="animate-pulse flex space-x-1">
+                          {[1, 2, 3, 4, 5].map((i) => (
+                            <div key={i} className="w-6 h-6 bg-gray-700 rounded"></div>
+                          ))}
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="flex gap-1 mb-2">
+                          {[1, 2, 3, 4, 5].map((star) => (
+                            <button
+                              key={star}
+                              onClick={async () => {
+                                if (isRating) return;
+                                
+                                const newRating = currentRating === star ? 0 : star;
+                                try {
+                                  await rateMovie(movie.id, newRating, {
+                                    id: movie.id,
+                                    title: movie.title,
+                                    poster_path: movie.poster_path,
+                                    release_date: movie.release_date,
+                                    overview: movie.overview,
+                                    vote_average: movie.vote_average,
+                                  });
+                                  // Update local state immediately for better UX
+                                  setCurrentRating(newRating);
+                                } catch (error) {
+                                  console.error('Error rating movie:', error);
+                                  toast.error('Failed to update rating');
+                                }
+                              }}
+                              disabled={isRating || !movie.id}
+                              className={`p-1 ${isRating ? 'cursor-wait' : 'cursor-pointer'}`}
+                              aria-label={`Rate ${star} star`}
+                            >
+                              <FaStar 
+                                className={`${star <= currentRating ? 'text-yellow-400' : 'text-gray-400'} ${isRating ? 'opacity-70' : ''}`}
+                                size={24}
+                              />
+                            </button>
+                          ))}
+                        </div>
+                        <p className="text-xs text-gray-400 text-center">
+                          {currentRating > 0
+                            ? `You rated this ${currentRating} star${currentRating === 1 ? '' : 's'}`
+                            : 'Rate for better recommendations'}
+                        </p>
+                      </>
+                    )}
+                    {currentRating > 0 && (
+                      <button
+                        onClick={async () => {
+                          if (isRating) return;
+                          try {
+                            await rateMovie(movie.id, 0, {
+                              id: movie.id,
+                              title: movie.title,
+                              poster_path: movie.poster_path,
+                              release_date: movie.release_date,
+                              overview: movie.overview,
+                              vote_average: movie.vote_average,
+                            });
+                          } catch (error) {
+                            console.error('Error removing rating:', error);
+                            toast.error('Failed to remove rating');
+                          }
+                        }}
+                        disabled={isRating}
+                        className="mt-2 text-xs text-red-400 hover:text-red-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        Remove rating
+                      </button>
                     )}
                   </div>
                 </div>

@@ -5,6 +5,7 @@ import RecommendationTabs from '../../components/RecommendationTabs/Recommendati
 import MovieCard from '../../components/MovieCard/MovieCard';
 import { useAuth } from '../../context/AuthContext';
 import { useRatings } from '../../context/RatingsContext';
+import { saveRating } from '../../services/ratings';
 
 // Sample list of recent Oscar winners (in a real app, you'd want to fetch this)
 const oscarWinners = [
@@ -33,20 +34,118 @@ const Home = () => {
   
   // Hooks
   const { user } = useAuth();
-  const { ratings, rateMovie } = useRatings();
+  const { ratings } = useRatings();
   const hasRatings = Object.keys(ratings).length > 0;
   
-  // Handle rating a movie
-  const handleRateMovie = useCallback(async (movieId, rating) => {
+  // Generate a random page number between 1 and 10 to get different results
+  const getRandomPage = useCallback(() => Math.floor(Math.random() * 10) + 1, []);
+  
+  // Fetch a single new movie
+  const fetchNewMovie = useCallback(async (tab) => {
     try {
-      await rateMovie(movieId, rating);
+      const apiKey = import.meta.env.VITE_TMDB_API_KEY;
+      let url = '';
+      
+      // Use a random page to get different results
+      const page = getRandomPage();
+      
+      switch(tab) {
+        case 'forYou':
+          url = `https://api.themoviedb.org/3/movie/top_rated?api_key=${apiKey}&page=${page}&language=en-US`;
+          break;
+        case 'oscarWinners':
+          url = `https://api.themoviedb.org/3/discover/movie?api_key=${apiKey}&with_awards=true&with_original_language=en&sort_by=vote_average.desc&vote_count.gte=1000&page=${page}&language=en-US`;
+          break;
+        case 'popular':
+          url = `https://api.themoviedb.org/3/movie/popular?api_key=${apiKey}&page=${page}&language=en-US`;
+          break;
+        case 'criticsPicks':
+          url = `https://api.themoviedb.org/3/discover/movie?api_key=${apiKey}&vote_average.gte=7.5&vote_count.gte=500&sort_by=vote_average.desc&page=${page}&language=en-US`;
+          break;
+        default:
+          return null;
+      }
+      
+      const response = await fetch(url);
+      if (!response.ok) {
+        throw new Error(`Failed to fetch new movie: ${response.status}`);
+      }
+      
+      const result = await response.json();
+      const newMovie = result.results?.[0];
+      
+      if (!newMovie) return null;
+      
+      // Format the movie data to match our expected format
+      return {
+        id: newMovie.id,
+        title: newMovie.title,
+        overview: newMovie.overview,
+        release_date: newMovie.release_date,
+        poster_path: newMovie.poster_path,
+        posterPath: newMovie.poster_path 
+          ? `https://image.tmdb.org/t/p/w500${newMovie.poster_path}` 
+          : 'https://via.placeholder.com/300x450?text=No+Poster',
+        vote_average: newMovie.vote_average,
+        vote_count: newMovie.vote_count,
+        genre_ids: newMovie.genre_ids || [],
+        year: newMovie.release_date ? new Date(newMovie.release_date).getFullYear() : null,
+        genre_names: newMovie.genres ? newMovie.genres.map(g => g.name) : []
+      };
+      
+    } catch (error) {
+      console.error('Error fetching new movie:', error);
+      return null;
+    }
+  }, [getRandomPage]);
+  
+  // Handle rating a movie and replace it with a new recommendation
+  const handleRateMovie = useCallback(async (movieId, rating, movieData) => {
+    try {
+      // Get the index of the movie being rated
+      const movieIndex = movies.findIndex(m => m.id === movieId);
+      if (movieIndex === -1) return;
+      
+      // Save the rating using the saveRating function
+      if (!user?.uid) {
+        console.error('Cannot save rating: No user is signed in');
+        return;
+      }
+      
+      // Use the provided movieData or find the movie in the movies array
+      const movieToRate = movieData || movies.find(m => m.id === movieId);
+      if (!movieToRate) {
+        console.error('Movie not found:', movieId);
+        return;
+      }
+      
+      await saveRating(user.uid, movieId, rating, {
+        id: movieId,
+        title: movieToRate.title,
+        poster_path: movieToRate.poster_path,
+        release_date: movieToRate.release_date,
+        overview: movieToRate.overview,
+        vote_average: movieToRate.vote_average,
+      });
+      
+      // Only replace the movie if it's in the "For You" tab
+      if (activeTab === 'forYou') {
+        // Fetch a new movie to replace the rated one
+        const newMovie = await fetchNewMovie(activeTab);
+        
+        if (newMovie) {
+          // Replace the rated movie with the new one
+          setMovies(prevMovies => {
+            const newMovies = [...prevMovies];
+            newMovies[movieIndex] = newMovie;
+            return newMovies;
+          });
+        }
+      }
     } catch (error) {
       console.error('Error rating movie:', error);
     }
-  }, [rateMovie]);
-
-  // Generate a random page number between 1 and 10 to get different results
-  const getRandomPage = useCallback(() => Math.floor(Math.random() * 10) + 1, []);
+  }, [user?.uid, movies, activeTab, fetchNewMovie]);
 
   // Fetch movies based on active tab
   const fetchMovies = useCallback(async (tab = activeTab, options = {}) => {
@@ -270,7 +369,16 @@ const Home = () => {
                     user_rating: userRating
                   }}
                   showRating={true}
-                  onRate={handleRateMovie}
+                  onRate={(movieId, rating) => {
+                    // Handle the rating and get a callback when done
+                    handleRateMovie(movieId, rating, movie);
+                  }}
+                  onStatusChange={async (movieId, status) => {
+                    // For status changes (Not Interested, Watchlist), we'll treat them like ratings
+                    // with special values: -1 for Not Interested, -2 for Watchlist
+                    const ratingValue = status === 'not_interested' ? -1 : -2;
+                    await handleRateMovie(movieId, ratingValue, movie);
+                  }}
                 />
               );
             })

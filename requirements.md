@@ -1247,3 +1247,204 @@ firebase deploy
     If using Firebase Auth, make sure to whitelist localhost and your domain under Auth settings.
 
     If you need to use environment variables, prefix them with VITE_ in your .env file and use import.meta.env.VITE_YOUR_KEY.
+
+## AI Design Prompt: Hybrid Movie Recommendation Engine
+
+Use Case: Recommend 5 movies based on a single input movie and a user's past ratings and preferences
+Objective
+
+Build an AI-powered movie recommendation system that takes a single user-input movie and returns five curated movie recommendations, each derived from a distinct attribute of the original movie. The engine must also use the user's existing preferences—including ratings, watch list, and "Not Interested" selections—to personalize results and increase relevance.
+Core Functional Requirements
+Inputs
+
+    input_movie: Title or ID of a movie the user liked
+
+    user_ratings: Array of rated movies (with 1–5 star ratings)
+
+    user_watchlist: List of movie IDs or titles the user has saved to watch later
+
+    user_not_interested: List of movie IDs or titles the user has marked as “Not Interested”
+
+{
+  "input_movie": "The Martian",
+  "user_ratings": [
+    {"movie_id": "tt0816692", "title": "Interstellar", "user_rating": 5},
+    ...
+  ],
+  "user_watchlist": [
+    "tt1375666", "tt0133093", ...
+  ],
+  "user_not_interested": [
+    "tt1454468", "tt1825683", ...
+  ]
+}
+
+Outputs
+
+Return five recommended movies, each mapped to one of the following match types:
+
+    director
+
+    actor_1
+
+    actor_2
+
+    actor_3
+
+    genre_tone
+
+Each recommendation should include:
+
+    title
+
+    poster_url
+
+    reason_for_recommendation (e.g., “Directed by Ridley Scott”)
+
+    release_year
+
+    (Optional) imdb_score, rotten_tomatoes_score
+
+    (Optional) available_on: Streaming platforms
+
+    match_type: One of the 5 match axes above
+
+Matching Criteria (One per recommendation)
+
+    Director Match – Another movie by the same director
+
+    Actor #1 Match – Top billed actor
+
+    Actor #2 Match – Second billed actor
+
+    Actor #3 Match – Third billed actor
+
+    Genre & Mood Match – Similar tone, pace, or theme (e.g., “survival sci-fi,” “bittersweet comedy”)
+
+Personalization Logic
+1. Preference Profiling
+
+Use user’s historical ratings to build a taste profile:
+
+    High-rated genres, directors, actors
+
+    Low-rated or disliked content
+
+    Inferred tone/mood preferences (e.g., gritty, fast-paced, whimsical)
+
+2. Boosting
+
+    Boost movies similar to those the user rated 4–5 stars
+
+    Boost matches involving favorite actors/directors/genres
+
+    Boost any movies already in the user's watch list
+
+3. Filtering
+
+    Filter out any movie the user has:
+
+        Already rated (1–5 stars)
+
+        Explicitly marked as "Not Interested"
+
+    Avoid recommending more than one movie per actor or director to ensure variety
+
+4. Matching Weights
+
+Dynamic weighting (example baseline):
+
+    Genre/Tone: 30%
+
+    Director: 25%
+
+    Each Actor: 15%
+
+Adjust weights based on user taste profile (e.g., user prefers director-driven stories → boost director weight)
+Constraints & Exclusions
+
+    Do not recommend:
+
+        Movies the user has already rated
+
+        Movies marked as "Not Interested"
+
+        Duplicate actors/directors in the same result set
+
+        Direct sequels unless explicitly requested (e.g., avoid The Dark Knight Rises after The Dark Knight)
+
+    Do include:
+
+        Movies from the user’s Watch List, if they match the criteria
+
+        Unwatched titles aligned with high-probability interests
+
+Example Response (abbreviated)
+
+[
+  {
+    "title": "Blade Runner 2049",
+    "match_type": "genre_tone",
+    "reason_for_recommendation": "Matches tone and genre of The Martian (smart sci-fi survival)",
+    "poster_url": "...",
+    "release_year": 2017
+  },
+  ...
+]
+
+Optional Enhancements
+
+    Add thumbs-up/down feedback per result to improve future recommendations
+
+    Let users “re-center” on any recommended movie to generate a new 5-set
+
+    Include collaborative filtering alongside this content-based approach
+
+    Add transparency tags like “You liked this actor” or “Highly rated by similar users”
+
+Dependencies
+
+    TMDb or IMDb API: metadata (director, cast, genres, posters)
+
+    JustWatch, Reelgood, or similar: streaming availability
+
+    Custom user data store: ratings, watchlist, and not-interested sets
+When a user searches for "Star Wars" in the application, here's what happens with the recommendation system:
+1. Search Results:
+    * The system fetches the most relevant "Star Wars" movie from TMDb (likely "Star Wars: Episode IV - A New Hope" (1977))
+    * This movie is displayed prominently at the top of the search results
+2. Recommendation Process: The recommendation engine then generates 5 personalized suggestions based on: a) Director Matching (George Lucas):
+    * Other films by George Lucas (e.g., "American Graffiti", "THX 1138")
+    * Weight: High (director matches are strong indicators of similar style)
+3. b) Cast Matching (Top 3 actors):
+    * Harrison Ford films ("Indiana Jones" series, "Blade Runner")
+    * Mark Hamill films (voice work, other sci-fi)
+    * Carrie Fisher films (other acting roles)
+    * Weight: Medium-High (actors often appear in similar genres)
+4. c) Genre/Tone Matching:
+    * Space operas ("Star Trek" series)
+    * Sci-fi adventures ("Guardians of the Galaxy", "The Fifth Element")
+    * Classic hero's journey stories
+    * Weight: Medium (broader category matches)
+5. Personalization Factors:
+    * If the user has rated other sci-fi films highly, the system will prioritize similar films
+    * Previously rated films are excluded from recommendations
+    * Films the user has marked as "not interested" are filtered out
+6. Example Recommendations (could include):
+    * "The Empire Strikes Back" (sequel, same director/actors)
+    * "Raiders of the Lost Ark" (same director/lead actor, similar adventure tone)
+    * "Guardians of the Galaxy" (space adventure with humor)
+    * "Dune" (sci-fi epic with similar themes)
+    * "The Fifth Element" (colorful space opera with action/comedy)
+7. Display:
+    * Each recommendation shows:
+        * Movie poster
+        * Title and release year
+        * User's rating (if previously rated)
+        * Brief reason for recommendation (e.g., "Similar to Star Wars: Episode IV - A New Hope because it's directed by George Lucas")
+    * Users can rate these recommendations or add them to their watchlist
+8. Dynamic Updates:
+    * As the user interacts with recommendations (rating them, adding to watchlist), the system will refine future suggestions
+    * The more the user rates movies, the more personalized the recommendations become
+The system is designed to balance between obvious choices (direct sequels, same director) and more diverse suggestions that might appeal to a Star Wars fan based on different aspects they might enjoy (space setting, adventure themes, specific actors, etc.).
+

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
-import SearchBox from '../../components/SearchBox/SearchBox';
+import { useNavigate, useLocation } from 'react-router-dom';
+import SearchBar from '../../components/SearchBar/SearchBar';
 import RecommendationTabs from '../../components/RecommendationTabs/RecommendationTabs';
 import MovieCard from '../../components/MovieCard/MovieCard';
 import { useAuth } from '../../context/AuthContext';
@@ -25,6 +25,8 @@ const oscarWinners = [
 const Home = () => {
   // State
   const [searchQuery, setSearchQuery] = useState('');
+  const location = useLocation();
+  const navigate = useNavigate();
   const [movies, setMovies] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('forYou');
@@ -154,7 +156,12 @@ const Home = () => {
     try {
       let data = [];
       const apiKey = import.meta.env.VITE_TMDB_API_KEY;
-      console.log('API Key:', apiKey ? 'Found' : 'Not found');
+      console.log('API Key:', apiKey ? `Found (${apiKey.substring(0, 4)}...)` : 'Not found');
+      
+      if (!apiKey) {
+        console.error('TMDB API key is missing. Please check your .env file.');
+        throw new Error('TMDB API key is missing');
+      }
       let url = '';
       
       // Determine which page to use based on the tab
@@ -302,22 +309,85 @@ const Home = () => {
       setOscarPage(nextPage);
       fetchMovies('oscarWinners', { page: nextPage, append: true });
     }
-  }, [activeTab, popularPage, criticsPage, oscarPage, fetchMovies]);
+  }, [activeTab, popularPage, criticsPage, oscarPage, fetchMovies, getRandomPage]);
 
-  // Effects - only fetch when activeTab changes
+  // Simplified useEffect to fetch movies when tab changes
   useEffect(() => {
-    // Initial fetch when component mounts or activeTab changes
-    if (activeTab === 'forYou') {
-      fetchMovies(activeTab, { page: getRandomPage() });
-    } else {
-      fetchMovies(activeTab, { page: 1 });
-    }
-  }, [activeTab]); // Only re-run when activeTab changes
+    console.log('=== Tab changed effect triggered ===');
+    console.log('Active tab:', activeTab);
+    
+    const fetchData = async () => {
+      console.log('Starting to fetch data...');
+      setLoading(true);
+      
+      try {
+        let url = '';
+        const apiKey = import.meta.env.VITE_TMDB_API_KEY;
+        
+        // Simple direct fetch without using the fetchMovies function
+        if (activeTab === 'forYou') {
+          url = `https://api.themoviedb.org/3/movie/top_rated?api_key=${apiKey}&page=1&language=en-US`;
+        } else if (activeTab === 'popular') {
+          url = `https://api.themoviedb.org/3/movie/popular?api_key=${apiKey}&page=1&language=en-US`;
+        } else if (activeTab === 'criticsPicks') {
+          url = `https://api.themoviedb.org/3/discover/movie?api_key=${apiKey}&vote_average.gte=7.5&vote_count.gte=500&sort_by=vote_average.desc&page=1&language=en-US`;
+        } else if (activeTab === 'oscarWinners') {
+          url = `https://api.themoviedb.org/3/discover/movie?api_key=${apiKey}&with_awards=true&with_original_language=en&sort_by=vote_average.desc&vote_count.gte=1000&page=1&language=en-US`;
+        }
+        
+        console.log('Fetching from URL:', url);
+        const response = await fetch(url);
+        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+        
+        const data = await response.json();
+        console.log('API response:', data);
+        
+        if (data.results && data.results.length > 0) {
+          const formattedMovies = data.results.slice(0, 5).map(movie => ({
+            id: movie.id,
+            title: movie.title,
+            overview: movie.overview,
+            release_date: movie.release_date,
+            poster_path: movie.poster_path 
+              ? `https://image.tmdb.org/t/p/w500${movie.poster_path}` 
+              : 'https://via.placeholder.com/300x450?text=No+Poster',
+            vote_average: movie.vote_average,
+            vote_count: movie.vote_count,
+            year: movie.release_date ? new Date(movie.release_date).getFullYear() : null
+          }));
+          
+          console.log('Setting movies state with:', formattedMovies);
+          setMovies(formattedMovies);
+        } else {
+          console.log('No results from API');
+          setMovies([]);
+        }
+      } catch (error) {
+        console.error('Error fetching movies:', error);
+        setMovies([]);
+      } finally {
+        console.log('Setting loading to false');
+        setLoading(false);
+      }
+    };
+    
+    fetchData();
+    
+    // Cleanup function
+    return () => {
+      console.log('Cleaning up effect');
+    };
+  }, [activeTab]); // Only depend on activeTab
+  
+  // Log when movies or loading state changes
+  useEffect(() => {
+    console.log('Movies state updated. Loading:', loading, 'Movies:', movies);
+  }, [movies, loading]);
 
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Hero Section */}
-      <div className="pt-24 pb-8">
+      <div className="pb-8 pt-8">
         <div className="container mx-auto px-4 text-center">
           <h1 className="text-2xl md:text-3xl font-semibold mb-2 text-gray-800">
             Rate movies to get recommendations
@@ -326,10 +396,15 @@ const Home = () => {
             Search by title, genre, or actor
           </p>
           <div className="max-w-2xl mx-auto">
-            <SearchBox 
-              value={searchQuery}
-              onChange={setSearchQuery}
-              placeholder="Search for movies..."
+            <SearchBar 
+              initialQuery={searchQuery}
+              onSearch={(query) => {
+                const trimmedQuery = query.trim();
+                setSearchQuery(trimmedQuery);
+                if (trimmedQuery) {
+                  navigate(`/search?q=${encodeURIComponent(trimmedQuery)}`);
+                }
+              }}
               className="w-full"
             />
           </div>
@@ -350,11 +425,11 @@ const Home = () => {
           ]}
         />
         
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6 px-4">
           {loading ? (
             // Loading state
             Array(5).fill(0).map((_, i) => (
-              <div key={i} className="bg-white rounded shadow animate-pulse h-96" />
+              <div key={i} className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow duration-300 h-96" />
             ))
           ) : (
             // Movie list - limit to 5 movies
@@ -362,24 +437,28 @@ const Home = () => {
               // Get the user's rating for this movie
               const userRating = ratings[movie.id]?.rating || 0;
               return (
-                <MovieCard 
-                  key={movie.id}
-                  movie={{
-                    ...movie,
-                    user_rating: userRating
-                  }}
-                  showRating={true}
-                  onRate={(movieId, rating) => {
-                    // Handle the rating and get a callback when done
-                    handleRateMovie(movieId, rating, movie);
-                  }}
-                  onStatusChange={async (movieId, status) => {
-                    // For status changes (Not Interested, Watchlist), we'll treat them like ratings
-                    // with special values: -1 for Not Interested, -2 for Watchlist
-                    const ratingValue = status === 'not_interested' ? -1 : -2;
-                    await handleRateMovie(movieId, ratingValue, movie);
-                  }}
-                />
+                <div key={movie.id} className="h-full">
+                  <MovieCard 
+                    movie={{
+                      ...movie,
+                      user_rating: userRating
+                    }}
+                    showRating={true}
+                    showTitle={true}
+                    showYear={true}
+                    size="default"
+                    onRate={(movieId, rating) => {
+                      // Handle the rating and get a callback when done
+                      handleRateMovie(movieId, rating, movie);
+                    }}
+                    onStatusChange={async (movieId, status) => {
+                      // For status changes (Not Interested, Watchlist), we'll treat them like ratings
+                      // with special values: -1 for Not Interested, -2 for Watchlist
+                      const ratingValue = status === 'not_interested' ? -1 : -2;
+                      await handleRateMovie(movieId, ratingValue, movie);
+                    }}
+                  />
+                </div>
               );
             })
           )}

@@ -8,9 +8,11 @@ import Home from './pages/Home/Home';
 import MovieDetail from './pages/MovieDetail/MovieDetail';
 import NotFound from './pages/NotFound/NotFound';
 import RatingsPage from './pages/RatingsPage/RatingsPage';
+import SearchResults from './pages/SearchResults/SearchResults';
 import Login from './pages/Login/Login';
 import DirectorPage from './pages/DirectorPage/DirectorPage';
 import { ProtectedRoute } from './components/Auth/ProtectedRoute';
+import TestTMDB from './components/TestTMDB/TestTMDB';
 
 function App() {
   return (
@@ -19,7 +21,7 @@ function App() {
         <div className="min-h-screen bg-gray-50 flex flex-col">
           <Header />
           <Toaster position="top-right" />
-          <main className="flex-grow">
+          <main className="flex-grow pt-16">
             <Routes>
               <Route path="/login" element={
                 <ErrorBoundary>
@@ -60,10 +62,27 @@ function App() {
                 </ErrorBoundary>
               } />
               
-              {/* 404 Route */}
+              <Route path="/search" element={
+                <ErrorBoundary>
+                  <ProtectedRoute>
+                    <SearchResults />
+                  </ProtectedRoute>
+                </ErrorBoundary>
+              } />
+              
+              {/* Test Route (Unprotected) */}
+              <Route path="/test-tmdb" element={
+                <ErrorBoundary>
+                  <TestTMDB />
+                </ErrorBoundary>
+              } />
+              
+              {/* 404 Route - Must be last */}
               <Route path="*" element={
                 <ErrorBoundary>
-                  <NotFound />
+                  <ProtectedRoute>
+                    <NotFound />
+                  </ProtectedRoute>
                 </ErrorBoundary>
               } />
             </Routes>

@@ -1,6 +1,7 @@
 {
   "projects": {
-    "default": "now-playing-bc436"
+    "default": "now-playing-bc436",
+    "prod": "now-playing-bc436"
   },
   "targets": {},
   "etags": {}

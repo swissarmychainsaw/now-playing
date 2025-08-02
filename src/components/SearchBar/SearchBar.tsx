@@ -89,22 +89,39 @@ const SearchBar: FC<SearchBarProps> = ({
   useEffect(() => {
     if (initialQuery !== query) {
       setQuery(initialQuery);
+      // Clear suggestions and hide dropdown when initialQuery changes
+      setSuggestions([]);
+      setShowSuggestionsDropdown(false);
     }
   }, [initialQuery]);
+  
+  // Prevent dropdown from automatically opening on mount or when query changes
+  useEffect(() => {
+    // Only show dropdown when there are suggestions and the input is focused
+    if (suggestions.length > 0 && isFocused) {
+      setShowSuggestionsDropdown(true);
+    } else {
+      setShowSuggestionsDropdown(false);
+    }
+  }, [suggestions, isFocused]);
 
   // Handle search submission
   const handleSubmit = useCallback((e: React.FormEvent) => {
     e?.preventDefault();
     const trimmedQuery = query.trim();
     if (trimmedQuery) {
+      // Clear any previous error
+      setError(null);
+      
       if (onSearch) {
         onSearch(trimmedQuery);
       } else {
-        // Only navigate if we're not already on the search page
-        if (!location.pathname.startsWith('/search')) {
-          navigate(`/search?q=${encodeURIComponent(trimmedQuery)}`);
+        // Only navigate if we're not already on the search page or the query is different
+        const currentSearch = new URLSearchParams(location.search).get('q');
+        if (!location.pathname.startsWith('/search') || currentSearch !== trimmedQuery) {
+          navigate(`/search?q=${encodeURIComponent(trimmedQuery)}`, { replace: false });
         } else {
-          // If we're already on the search page, just update the query
+          // If we're already on the search page with the same query, just refresh
           const searchParams = new URLSearchParams(location.search);
           searchParams.set('q', trimmedQuery);
           navigate({ search: searchParams.toString() }, { replace: true });
@@ -117,7 +134,10 @@ const SearchBar: FC<SearchBarProps> = ({
 
   // Fetch search suggestions
   const fetchSuggestions = useCallback(async (searchQuery: string) => {
-    if (!searchQuery.trim() || !showSuggestions) return;
+    if (!searchQuery.trim() || !showSuggestions) {
+      setSuggestions([]);
+      return;
+    }
 
     setIsLoadingSuggestions(true);
     setError(null);
@@ -134,7 +154,7 @@ const SearchBar: FC<SearchBarProps> = ({
       
       const data = await response.json();
       setSuggestions(data.results || []);
-      setShowSuggestionsDropdown(true);
+      // Don't automatically show dropdown here, let the useEffect handle it based on focus
     } catch (err) {
       console.error('Error fetching suggestions:', err);
       setError('Failed to load suggestions. Please try again.');
@@ -165,6 +185,7 @@ const SearchBar: FC<SearchBarProps> = ({
     const movieTitle = movie.title || movie.name || '';
     setQuery(movieTitle);
     setShowSuggestionsDropdown(false);
+    setSuggestions([]); // Clear suggestions
     
     if (onSearch) {
       onSearch(movieTitle);
@@ -216,29 +237,53 @@ const SearchBar: FC<SearchBarProps> = ({
   // Handle input blur with a small delay to allow clicks on suggestions
   const handleBlur = useCallback(() => {
     setTimeout(() => {
-      setIsFocused(false);
-      setShowSuggestionsDropdown(false);
+      if (!suggestionsRef.current?.contains(document.activeElement)) {
+        setIsFocused(false);
+        setShowSuggestionsDropdown(false);
+      }
     }, 200);
   }, []);
+  
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (suggestionsRef.current && !suggestionsRef.current.contains(event.target as Node)) {
+        setShowSuggestionsDropdown(false);
+      }
+    };
+
+    // Add event listener when dropdown is visible
+    if (showSuggestionsDropdown) {
+      document.addEventListener('mousedown', handleClickOutside as any);
+    }
+
+    // Clean up
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside as any);
+    };
+  }, [showSuggestionsDropdown]);
 
   // Handle keyboard navigation in suggestions
   const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (!showSuggestions || suggestions.length === 0) return;
-
     switch (e.key) {
       case 'ArrowDown':
-        e.preventDefault();
-        setActiveSuggestionIndex(prev => 
-          prev < suggestions.length - 1 ? prev + 1 : prev
-        );
+        if (showSuggestions && suggestions.length > 0) {
+          e.preventDefault();
+          setActiveSuggestionIndex(prev => 
+            prev < suggestions.length - 1 ? prev + 1 : prev
+          );
+        }
         break;
       case 'ArrowUp':
-        e.preventDefault();
-        setActiveSuggestionIndex(prev => (prev > 0 ? prev - 1 : -1));
+        if (showSuggestions && suggestions.length > 0) {
+          e.preventDefault();
+          setActiveSuggestionIndex(prev => (prev > 0 ? prev - 1 : -1));
+        }
         break;
       case 'Enter':
         e.preventDefault();
-        if (activeSuggestionIndex >= 0) {
+        setShowSuggestionsDropdown(false);
+        if (activeSuggestionIndex >= 0 && showSuggestions && suggestions.length > 0) {
           handleSuggestionClick(suggestions[activeSuggestionIndex]);
         } else {
           handleSubmit(e as unknown as React.FormEvent<HTMLFormElement>);
@@ -273,7 +318,7 @@ const SearchBar: FC<SearchBarProps> = ({
   }, []);
 
   return (
-    <div className={`relative ${className}`}>
+    <div className={`relative ${className}`} ref={suggestionsRef}>
       <form onSubmit={handleSubmit} className="relative">
         <div
           className={`relative flex items-center transition-all duration-200 ${

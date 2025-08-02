@@ -177,14 +177,46 @@ const MovieCard = ({
   
 
 
-  // Get the poster URL with fallback
-  const getPosterUrl = () => {
-    if (movie.poster_path) {
-      return `https://image.tmdb.org/t/p/w500${movie.poster_path}`;
-    }
-    return '/placeholder-movie.png';
+  // Check if we should show the placeholder
+  const showPlaceholder = !movie.poster_path;
+
+  // Handle image load
+  const handleImageLoad = () => {
+    setImageLoaded(true);
   };
 
+  // Handle image error
+  const handleImageError = (e) => {
+    e.target.onerror = null; // Prevent infinite loop
+    e.target.src = '/placeholder-movie.png';
+    setImageLoaded(true);
+  };
+  
+  // Preload image
+  useEffect(() => {
+    if (showPlaceholder) {
+      setImageLoaded(true);
+      return;
+    }
+
+    setImageLoaded(false);
+    const img = new Image();
+    img.src = `https://image.tmdb.org/t/p/w500${movie.poster_path}`;
+    
+    img.onload = () => {
+      setImageLoaded(true);
+    };
+    
+    img.onerror = () => {
+      setImageLoaded(true);
+    };
+    
+    return () => {
+      img.onload = null;
+      img.onerror = null;
+    };
+  }, [movie.poster_path, showPlaceholder]);
+  
   // Get the release year
   const getReleaseYear = () => {
     if (movie.release_date) {
@@ -203,25 +235,28 @@ const MovieCard = ({
     >
       {/* Movie Poster */}
       <div className="aspect-[2/3] bg-gray-100 overflow-hidden relative">
-        {!imageLoaded && (
+        {!showPlaceholder && !imageLoaded && (
           <div className="absolute inset-0 flex items-center justify-center bg-gray-200">
             <div className="w-8 h-8 border-4 border-gray-300 border-t-primary rounded-full animate-spin"></div>
           </div>
         )}
         
-        <img
-          src={getPosterUrl()}
-          alt={movie.title || 'Movie poster'}
-          className={`w-full h-full object-cover transition-opacity duration-200 ${
-            imageLoaded ? 'opacity-100' : 'opacity-0'
-          }`}
-          onLoad={() => setImageLoaded(true)}
-          onError={(e) => {
-            e.target.src = '/placeholder-movie.png';
-            setImageLoaded(true);
-          }}
-          loading="lazy"
-        />
+        {showPlaceholder ? (
+          <div className="w-full h-full bg-gray-200 flex items-center justify-center">
+            <span className="text-gray-500 text-sm">No Image Available</span>
+          </div>
+        ) : (
+          <img
+            src={`https://image.tmdb.org/t/p/w500${movie.poster_path}`}
+            alt={movie.title || 'Movie poster'}
+            className={`w-full h-full object-cover transition-opacity duration-200 ${
+              imageLoaded ? 'opacity-100' : 'opacity-0'
+            }`}
+            onLoad={handleImageLoad}
+            onError={handleImageError}
+            loading="lazy"
+          />
+        )}
         
         {/* Like Button */}
         <button

@@ -1,18 +1,4 @@
 {
-  "indexes": [
-    {
-      "collectionGroup": "users",
-      "queryScope": "COLLECTION",
-      "fields": [
-        {
-          "fieldPath": "ratings",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "ratings.ratedAt",
-          "order": "DESCENDING"
-        }
-      ]
-    }
-  ]
+  "indexes": [],
+  "fieldOverrides": []
 }

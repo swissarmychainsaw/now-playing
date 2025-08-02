@@ -337,6 +337,182 @@ const getConfiguration = async () => {
   }
 };
 
+/**
+ * Get watch providers for a specific movie
+ * @param {number} movieId - The ID of the movie
+ * @returns {Promise<Object>} - Watch providers information
+ */
+async function getMovieWatchProviders(movieId) {
+  try {
+    const response = await tmdbApi.get(`/movie/${movieId}/watch/providers`);
+    return response.data;
+  } catch (error) {
+    console.error(`Error fetching watch providers for movie ${movieId}:`, error);
+    throw error;
+  }
+}
+
+/**
+ * Get videos (trailers, teasers, etc.) for a specific movie
+ * @param {number} movieId - The ID of the movie
+ * @returns {Promise<Object>} - Videos information
+ */
+async function getMovieVideos(movieId) {
+  try {
+    const response = await tmdbApi.get(`/movie/${movieId}/videos`, {
+      params: {
+        language: 'en-US',
+        include_video_language: 'en',
+      },
+    });
+    return response.data;
+  } catch (error) {
+    console.error(`Error fetching videos for movie ${movieId}:`, error);
+    throw error;
+  }
+}
+
+/**
+ * Fallback to OMDB API when TMDB fails
+ * @param {string} title - The title of the show/movie
+ * @param {number} year - The release year (optional)
+ * @returns {Promise<Object>} - Fallback data from OMDB
+ */
+const fetchFromOmdb = async (title, year) => {
+  try {
+    const apiKey = import.meta.env.VITE_OMDB_API_KEY;
+    if (!apiKey) {
+      console.warn('OMDB API key not found. Please set VITE_OMDB_API_KEY in your environment variables.');
+      return null;
+    }
+
+    const response = await axios.get('http://www.omdbapi.com/', {
+      params: {
+        apikey: apiKey,
+        t: title,
+        y: year,
+        type: 'series',
+        plot: 'full'
+      },
+      timeout: 5000 // 5 second timeout
+    });
+
+    if (response.data && response.data.Response === 'True') {
+      return {
+        title: response.data.Title,
+        overview: response.data.Plot,
+        poster_path: response.data.Poster.startsWith('http') ? response.data.Poster : null,
+        release_date: response.data.Year,
+        vote_average: response.data.imdbRating ? parseFloat(response.data.imdbRating) * 10 : 0,
+        credits: {
+          cast: response.data.Actors ? response.data.Actors.split(', ').map(actor => ({
+            name: actor,
+            character: 'Actor'
+          })) : [],
+          crew: response.data.Director ? [{
+            name: response.data.Director,
+            job: 'Director'
+          }] : []
+        },
+        videos: {
+          results: response.data.imdbID ? [{
+            key: response.data.imdbID,
+            site: 'imdb',
+            type: 'Trailer',
+            name: `${response.data.Title} (${response.data.Year})`
+          }] : []
+        },
+        providers: {},
+        media_type: 'tv',
+        external_ids: {
+          imdb_id: response.data.imdbID
+        }
+      };
+    }
+    return null;
+  } catch (error) {
+    console.warn('Error fetching from OMDB:', error.message);
+    return null;
+  }
+};
+
+/**
+ * Get detailed information about a TV show
+ * @param {number} tvId - The ID of the TV show
+ * @param {string} title - The title of the TV show
+ * @param {number} year - The release year of the TV show
+ * @returns {Promise<Object>} - Detailed TV show information
+ */
+export const getTvDetails = async (tvId, title = '', year = null) => {
+  try {
+    const response = await tmdbApi.get(`/tv/${tvId}`, {
+      params: {
+        append_to_response: 'credits,keywords,recommendations,similar,content_ratings'
+      }
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching TV show details from TMDB, trying fallback...', error.message);
+    
+    // Only try OMDB fallback if we have a title
+    if (title) {
+      const fallbackData = await fetchFromOmdb(title, year);
+      if (fallbackData) {
+        console.log('Using fallback data from OMDB');
+        return fallbackData;
+      }
+    }
+    
+    throw error; // Re-throw if all fallbacks fail
+  }
+};
+
+/**
+ * Get credits for a TV show
+ * @param {number} tvId - The ID of the TV show
+ * @returns {Promise<Object>} - Credits information
+ */
+export const getTvCredits = async (tvId) => {
+  try {
+    const response = await tmdbApi.get(`/tv/${tvId}/credits`);
+    return response.data;
+  } catch (error) {
+    console.warn('Error fetching TV credits:', error.message);
+    // Return empty credits if the API call fails
+    return { cast: [], crew: [] };
+  }
+};
+
+/**
+ * Get watch providers for a TV show
+ * @param {number} tvId - The ID of the TV show
+ * @returns {Promise<Object>} - Watch providers information
+ */
+export const getTvWatchProviders = async (tvId) => {
+  try {
+    const response = await tmdbApi.get(`/tv/${tvId}/watch/providers`);
+    return response.data.results?.US || {};
+  } catch (error) {
+    console.warn('Error fetching TV providers:', error.message);
+    return {};
+  }
+};
+
+/**
+ * Get videos for a TV show
+ * @param {number} tvId - The ID of the TV show
+ * @returns {Promise<Object>} - Videos information
+ */
+export const getTvVideos = async (tvId) => {
+  try {
+    const response = await tmdbApi.get(`/tv/${tvId}/videos`);
+    return response.data;
+  } catch (error) {
+    console.warn('Error fetching TV videos:', error.message);
+    return { results: [] };
+  }
+};
+
 // Export all functions as a single default export
 const tmdbService = {
   getMovieDetails,
@@ -349,7 +525,46 @@ const tmdbService = {
   discoverMovies,
   getTrending,
   getMovieGenres,
-  getConfiguration
+  getConfiguration,
+  getMovieWatchProviders,
+  getMovieVideos,
+  getTvDetails,
+  getTvCredits,
+  getTvWatchProviders,
+  getTvVideos
 };
 
 export default tmdbService;
+
+// Recommendation methods
+tmdbService.getMovieRecommendations = async function(movieId, options = {}) {
+  try {
+    const response = await tmdbApi.get(`/movie/${movieId}/recommendations`, {
+      params: {
+        language: 'en-US',
+        page: 1,
+        ...options
+      }
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching movie recommendations:', error);
+    throw error;
+  }
+};
+
+tmdbService.getPopularMovies = async function(options = {}) {
+  try {
+    const response = await tmdbApi.get('/movie/popular', {
+      params: {
+        language: 'en-US',
+        page: 1,
+        ...options
+      }
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching popular movies:', error);
+    throw error;
+  }
+};

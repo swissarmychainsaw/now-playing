@@ -1,4 +1,4 @@
-import React, { FC, useCallback } from 'react';
+import React, { FC, useCallback, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Box, Container, Typography, Button } from '@mui/material';
 import { motion, Variants } from 'framer-motion';
@@ -7,13 +7,18 @@ import { FaPlay, FaStar } from 'react-icons/fa';
 
 const Home: FC = () => {
   const navigate = useNavigate();
+  const [isSearching, setIsSearching] = useState(false);
 
   // Handle search submission
   const handleSearch = useCallback((query: string) => {
-    if (query.trim()) {
-      navigate(`/search?q=${encodeURIComponent(query.trim())}`);
+    const trimmedQuery = query.trim();
+    if (trimmedQuery && !isSearching) {
+      setIsSearching(true);
+      navigate(`/search?q=${encodeURIComponent(trimmedQuery)}`, { replace: false });
+      // Reset the searching state after navigation
+      setTimeout(() => setIsSearching(false), 1000);
     }
-  }, [navigate]);
+  }, [navigate, isSearching]);
 
   // Animation variants
   const containerVariants: Variants = {

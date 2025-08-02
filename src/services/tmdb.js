@@ -45,6 +45,11 @@ tmdbApi.interceptors.response.use(
     return response;
   },
   error => {
+    // Skip logging for canceled requests
+    if (axios.isCancel(error) || error.code === 'ERR_CANCELED' || error.name === 'AbortError') {
+      return Promise.reject(error);
+    }
+    
     if (error.config) {
       const duration = Date.now() - error.config.metadata.startTime;
       console.error(`[TMDB Error ${error.config.metadata.requestId}]`, {

@@ -1,7 +1,7 @@
-import { useState, useRef, useEffect, useCallback, FC, ReactNode, KeyboardEvent, ChangeEvent } from 'react';
+import React, { FC, useState, useRef, useEffect, useCallback, KeyboardEvent, ChangeEvent, MouseEvent } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { FaSearch, FaTimes, FaSpinner, FaFilm } from 'react-icons/fa';
 import { motion, AnimatePresence } from 'framer-motion';
+import { FaSearch, FaTimes, FaSpinner, FaFilm } from 'react-icons/fa';
 
 // Extend the global ImportMeta interface for Vite environment variables
 declare global {
@@ -93,7 +93,7 @@ const SearchBar: FC<SearchBarProps> = ({
   }, [initialQuery]);
 
   // Handle search submission
-  const handleSubmit = useCallback((e) => {
+  const handleSubmit = useCallback((e: React.FormEvent) => {
     e?.preventDefault();
     const trimmedQuery = query.trim();
     if (trimmedQuery) {
@@ -115,53 +115,53 @@ const SearchBar: FC<SearchBarProps> = ({
     }
   }, [query, onSearch, navigate, location.pathname, location.search]);
 
-  // Debounced search for suggestions
+  // Fetch search suggestions
+  const fetchSuggestions = useCallback(async (searchQuery: string) => {
+    if (!searchQuery.trim() || !showSuggestions) return;
+
+    setIsLoadingSuggestions(true);
+    setError(null);
+
+    try {
+      const apiKey = import.meta.env.VITE_TMDB_API_KEY;
+      const response = await fetch(
+        `https://api.themoviedb.org/3/search/multi?api_key=${apiKey}&language=en-US&query=${encodeURIComponent(searchQuery)}&page=1&include_adult=false`
+      );
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch suggestions');
+      }
+      
+      const data = await response.json();
+      setSuggestions(data.results || []);
+      setShowSuggestionsDropdown(true);
+    } catch (err) {
+      console.error('Error fetching suggestions:', err);
+      setError('Failed to load suggestions. Please try again.');
+      setSuggestions([]);
+    } finally {
+      setIsLoadingSuggestions(false);
+    }
+  }, [showSuggestions]);
+
+  // Debounce search suggestions
   useEffect(() => {
-    if (!showSuggestions || !query.trim() || query.length < 2) {
+    if (!query.trim() || !showSuggestions) {
       setSuggestions([]);
       return;
     }
 
-    const controller = new AbortController();
-    const { signal } = controller;
+    const timerId = setTimeout(() => {
+      fetchSuggestions(query);
+    }, 300);
 
-    const fetchSuggestions = useCallback(async (searchQuery: string) => {
-      if (!searchQuery.trim() || !showSuggestions) return;
-
-      setIsLoadingSuggestions(true);
-      setError(null);
-
-      try {
-        const apiKey = (import.meta as ImportMeta).env.VITE_TMDB_API_KEY;
-        const response = await fetch(
-          `https://api.themoviedb.org/3/search/multi?api_key=${apiKey}&language=en-US&query=${encodeURIComponent(searchQuery)}&page=1&include_adult=false`
-        );
-        
-        if (!response.ok) {
-          throw new Error('Failed to fetch suggestions');
-        }
-        
-        const data = await response.json();
-        setSuggestions(data.results || []);
-        setShowSuggestionsDropdown(true);
-      } catch (err) {
-        console.error('Error fetching suggestions:', err);
-        setError('Failed to load suggestions. Please try again.');
-        setSuggestions([]);
-      } finally {
-        setIsLoadingSuggestions(false);
-      }
-    }, [showSuggestions]);
-
-    const timerId = setTimeout(() => fetchSuggestions(query), 300);
     return () => {
-      controller.abort();
       clearTimeout(timerId);
     };
-  }, [query, showSuggestions]);
+  }, [query, showSuggestions, fetchSuggestions]);
 
   // Handle suggestion click
-  const handleSuggestionClick = useCallback((movie) => {
+  const handleSuggestionClick = useCallback((movie: MovieSuggestion) => {
     const movieTitle = movie.title || movie.name || '';
     setQuery(movieTitle);
     setShowSuggestionsDropdown(false);
@@ -193,57 +193,84 @@ const SearchBar: FC<SearchBarProps> = ({
   }, [navigate, location.pathname]);
 
   // Handle input changes
-  const handleInputChange = (e) => {
-    const value = e.target.value;
-    setQuery(value);
+  const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const newQuery = e.target.value;
+    setQuery(newQuery);
     
-    // Show suggestions when typing
-    if (value.trim().length >= 2) {
-      setShowSuggestionsDropdown(true);
+    if (newQuery.trim() && showSuggestions) {
+      fetchSuggestions(newQuery);
     } else {
+      setSuggestions([]);
       setShowSuggestionsDropdown(false);
     }
-  };
+  }, [showSuggestions, fetchSuggestions]);
 
   // Handle input focus
-  const handleFocus = () => {
+  const handleFocus = useCallback(() => {
     setIsFocused(true);
     if (query.trim().length >= 2) {
       setShowSuggestionsDropdown(true);
     }
-  };
+  }, [query]);
 
   // Handle input blur with a small delay to allow clicks on suggestions
-  const handleBlur = () => {
+  const handleBlur = useCallback(() => {
     setTimeout(() => {
       setIsFocused(false);
       setShowSuggestionsDropdown(false);
     }, 200);
-  };
+  }, []);
 
-  // Handle keyboard navigation
-  const handleKeyDown = useCallback((e) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      if (query.trim()) {
-        handleSubmit(e);
-      }
-    } else if (e.key === 'Escape') {
-      setShowSuggestionsDropdown(false);
-      inputRef.current?.blur();
+  // Handle keyboard navigation in suggestions
+  const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (!showSuggestions || suggestions.length === 0) return;
+
+    switch (e.key) {
+      case 'ArrowDown':
+        e.preventDefault();
+        setActiveSuggestionIndex(prev => 
+          prev < suggestions.length - 1 ? prev + 1 : prev
+        );
+        break;
+      case 'ArrowUp':
+        e.preventDefault();
+        setActiveSuggestionIndex(prev => (prev > 0 ? prev - 1 : -1));
+        break;
+      case 'Enter':
+        e.preventDefault();
+        if (activeSuggestionIndex >= 0) {
+          handleSuggestionClick(suggestions[activeSuggestionIndex]);
+        } else {
+          handleSubmit(e as unknown as React.FormEvent<HTMLFormElement>);
+        }
+        break;
+      case 'Escape':
+        setShowSuggestionsDropdown(false);
+        break;
+      default:
+        break;
     }
-  }, [query, handleSubmit]);
+  }, [showSuggestions, suggestions, activeSuggestionIndex, handleSuggestionClick, handleSubmit]);
 
   // Set up event listeners for keyboard navigation
   useEffect(() => {
     const input = inputRef.current;
-    if (input) {
-      input.addEventListener('keydown', handleKeyDown);
-      return () => {
-        input.removeEventListener('keydown', handleKeyDown);
-      };
-    }
-  }, [handleKeyDown]);
+    if (!input) return;
+
+    const handleKeyDown = (e: Event) => {
+      // Use a type assertion through unknown to satisfy TypeScript's type checking
+      const keyboardEvent = e as unknown as KeyboardEvent;
+      if (keyboardEvent.key === 'Escape') {
+        setShowSuggestionsDropdown(false);
+        input.blur();
+      }
+    };
+
+    input.addEventListener('keydown', handleKeyDown);
+    return () => {
+      input.removeEventListener('keydown', handleKeyDown);
+    };
+  }, []);
 
   return (
     <div className={`relative ${className}`}>
@@ -341,10 +368,14 @@ const SearchBar: FC<SearchBarProps> = ({
                           loading="lazy"
                           width="40"
                           height="56"
-                          onError={(e) => {
+                          onError={(e: React.SyntheticEvent<HTMLImageElement>) => {
                             // Fallback to placeholder if image fails to load
-                            e.target.style.display = 'none';
-                            e.target.nextElementSibling.style.display = 'flex';
+                            const target = e.target as HTMLImageElement;
+                            target.style.display = 'none';
+                            const nextSibling = target.nextElementSibling as HTMLElement;
+                            if (nextSibling) {
+                              nextSibling.style.display = 'flex';
+                            }
                           }}
                         />
                         <div className="absolute inset-0 hidden items-center justify-center bg-gray-700">

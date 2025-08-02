@@ -21,7 +21,7 @@ function App() {
         <div className="min-h-screen bg-gray-50 flex flex-col">
           <Header />
           <Toaster position="top-right" />
-          <main className="flex-grow pt-16">
+          <main className="flex-grow pt-20">
             <Routes>
               <Route path="/login" element={
                 <ErrorBoundary>

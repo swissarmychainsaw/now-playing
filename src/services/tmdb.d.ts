@@ -15,23 +15,23 @@ export interface SearchOptions {
   signal?: AbortSignal;
 }
 
-declare module '../../services/tmdb' {
-  interface ITmdbService {
-    // Existing methods
-    getMovieDetails(movieId: number): Promise<TmdbMovieDetails>;
-    getMovieCredits(movieId: number): Promise<TmdbCredits>;
-    
-    // Search methods
-    searchMovies(
-      query: string, 
-      options?: SearchOptions
-    ): Promise<TmdbPaginatedResponse<TmdbMovie | TmdbTvShow | TmdbPerson>>;
-    
-    // Other methods
-    getMovieRecommendations(movieId: number, options?: any): Promise<TmdbRecommendations>;
-    getPopularMovies(options?: any): Promise<TmdbPaginatedResponse<TmdbMovie>>;
-  }
-
-  const tmdbService: ITmdbService;
-  export default tmdbService;
+export interface TmdbService {
+  // Movie methods
+  getMovieDetails(movieId: number): Promise<TmdbMovieDetails>;
+  getMovieCredits(movieId: number): Promise<TmdbCredits>;
+  getRecommendations(movieId: number): Promise<TmdbPaginatedResponse<TmdbMovie>>;
+  
+  // Search methods
+  searchMovies(
+    query: string, 
+    options?: SearchOptions
+  ): Promise<TmdbPaginatedResponse<TmdbMovie | TmdbTvShow | TmdbPerson>>;
+  
+  // Other methods
+  getPopularMovies(options?: any): Promise<TmdbPaginatedResponse<TmdbMovie>>;
+  getMovieRecommendations(movieId: number, options?: any): Promise<TmdbPaginatedResponse<TmdbMovie>>;
 }
+
+declare const tmdbService: TmdbService;
+
+export default tmdbService;
